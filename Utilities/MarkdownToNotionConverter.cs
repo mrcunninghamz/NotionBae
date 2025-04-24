@@ -61,15 +61,17 @@ public class MarkdownToNotionConverter
                 blocks.Add(CreateHeadingBlock(line.Substring(2), "heading_1"));
             }
             // Check for code blocks
-            else if (line.StartsWith("```"))
+            else if (line.Trim().StartsWith("```"))
             {
                 var codeContent = new StringBuilder();
-                var language = line.Length > 3 ? line.Substring(3).Trim() : "";
+                var trimmedLine = line.Trim();
+                
+                var language = trimmedLine.Length > 3 ? trimmedLine.Substring(3).Trim() : "";
                 
                 i++; // Skip the opening ```
                 
                 // Collect all code lines until closing ```
-                while (i < lines.Length && !lines[i].StartsWith("```"))
+                while (i < lines.Length && !lines[i].Trim().StartsWith("```"))
                 {
                     codeContent.AppendLine(lines[i]);
                     i++;
@@ -78,34 +80,19 @@ public class MarkdownToNotionConverter
                 blocks.Add(CreateCodeBlock(codeContent.ToString(), language));
             }
             // Check for bullet lists
-            else if (line.StartsWith("- ") || line.StartsWith("* "))
+            else if (line.Trim().StartsWith("- ") || line.Trim().StartsWith("* "))
             {
-                blocks.Add(CreateBulletedListBlock(line.Substring(2)));
+                var trimmedLine = line.Trim();
+                blocks.Add(CreateBulletedListBlock(trimmedLine.Substring(2)));
             }
             // Check for numbered lists
-            else if (Regex.IsMatch(line, @"^\d+\.\s"))
+            else if (Regex.IsMatch(line, @"^[\s\t]*\d+\.\s"))
             {
-                var match = Regex.Match(line, @"^\d+\.\s(.+)$");
+                var match = Regex.Match(line, @"^[\s\t]*\d+\.\s(.+)$");
                 if (match.Success)
                 {
                     blocks.Add(CreateNumberedListBlock(match.Groups[1].Value));
                 }
-            }
-            // Check for XML blocks
-            else if (line.Contains("```xml"))
-            {
-                var xmlContent = new StringBuilder();
-                
-                i++; // Skip the opening ```xml
-                
-                // Collect all xml lines until closing ```
-                while (i < lines.Length && !lines[i].StartsWith("```"))
-                {
-                    xmlContent.AppendLine(lines[i]);
-                    i++;
-                }
-                
-                blocks.Add(CreateCodeBlock(xmlContent.ToString(), "xml"));
             }
             // Regular paragraph
             else
@@ -122,34 +109,20 @@ public class MarkdownToNotionConverter
     /// </summary>
     private static object CreateHeadingBlock(string content, string level = "heading_3")
     {
-        // Create a dynamic object with the correct property name
         var result = new Dictionary<string, object>
         {
             { "object", "block" },
             { "type", level }
         };
 
-        // Create the nested property with the same name as the level
         var headingContent = new Dictionary<string, object>
         {
             { 
-                "rich_text", new[]
-                {
-                    new Dictionary<string, object>
-                    {
-                        { "type", "text" },
-                        { 
-                            "text", new Dictionary<string, string>
-                            {
-                                { "content", content }
-                            }
-                        }
-                    }
-                }
+                "rich_text", 
+                RichTextConverter.ConvertToRichText(content)
             }
         };
 
-        // Add the heading content with the dynamic property name matching the level
         result.Add(level, headingContent);
 
         return result;
@@ -166,17 +139,7 @@ public class MarkdownToNotionConverter
             type = "paragraph",
             paragraph = new
             {
-                rich_text = new[]
-                {
-                    new
-                    {
-                        type = "text",
-                        text = new
-                        {
-                            content
-                        }
-                    }
-                }
+                rich_text = RichTextConverter.ConvertToRichText(content)
             }
         };
     }
@@ -186,10 +149,8 @@ public class MarkdownToNotionConverter
     /// </summary>
     private static object CreateCodeBlock(string content, string language)
     {
-        // Validate and normalize language
         string normalizedLanguage = language.ToLowerInvariant().Trim();
         
-        // Use default language if the specified language is not supported
         if (!SupportedLanguages.Contains(normalizedLanguage))
         {
             normalizedLanguage = DefaultLanguage;
@@ -201,17 +162,7 @@ public class MarkdownToNotionConverter
             type = "code",
             code = new
             {
-                rich_text = new[]
-                {
-                    new
-                    {
-                        type = "text",
-                        text = new
-                        {
-                            content
-                        }
-                    }
-                },
+                rich_text = RichTextConverter.ConvertToRichText(content),
                 language = normalizedLanguage
             }
         };
@@ -228,17 +179,7 @@ public class MarkdownToNotionConverter
             type = "bulleted_list_item",
             bulleted_list_item = new
             {
-                rich_text = new[]
-                {
-                    new
-                    {
-                        type = "text",
-                        text = new
-                        {
-                            content
-                        }
-                    }
-                }
+                rich_text = RichTextConverter.ConvertToRichText(content)
             }
         };
     }
@@ -254,18 +195,109 @@ public class MarkdownToNotionConverter
             type = "numbered_list_item",
             numbered_list_item = new
             {
-                rich_text = new[]
+                rich_text = RichTextConverter.ConvertToRichText(content)
+            }
+        };
+    }
+}
+
+public class RichTextConverter
+{
+    public static object[] ConvertToRichText(string markdown)
+    {
+        var richTextBlocks = new List<object>();
+        int currentPosition = 0;
+
+        // Regex pattern to match different Markdown patterns
+        var patterns = new[]
+        {
+            (@"(?<![*_])[*_](?![*_])(.+?)(?<![*_])[*_](?![*_])", new TextAnnotations { Italic = true }), // *italic* or _italic_
+            (@"(?<![*_])[*_]{2}(?![*_])(.+?)(?<![*_])[*_]{2}(?![*_])", new TextAnnotations { Bold = true }), // **bold** or __bold__
+            (@"(?<![*_])[*_]{3}(?![*_])(.+?)(?<![*_])[*_]{3}(?![*_])", new TextAnnotations { Bold = true, Italic = true }), // ***bold+italic*** or ___bold+italic___
+            (@"~~(.+?)~~", new TextAnnotations { Strikethrough = true }), // ~~strikethrough~~
+            (@"(?<!`)`(?!`)(.+?)(?<!`)`(?!`)", new TextAnnotations { Code = true }), // `code`
+        };
+
+        // Find all markdown patterns and their positions
+        var segments = new List<(int Start, int End, string Text, TextAnnotations Annotations)>();
+        
+        // Add initial text if it exists
+        foreach (var (pattern, annotations) in patterns)
+        {
+            var matches = Regex.Matches(markdown, pattern);
+            foreach (Match match in matches)
+            {
+                segments.Add((match.Index, match.Index + match.Length, 
+                    match.Groups[1].Value, annotations));
+            }
+        }
+
+        // Sort segments by start position
+        segments = segments.OrderBy(s => s.Start).ToList();
+
+        // Process text including non-formatted parts
+        int lastEnd = 0;
+        foreach (var segment in segments)
+        {
+            // Add plain text before the formatted segment
+            if (segment.Start > lastEnd)
+            {
+                string plainText = markdown.Substring(lastEnd, segment.Start - lastEnd);
+                if (!string.IsNullOrEmpty(plainText))
                 {
-                    new
-                    {
-                        type = "text",
-                        text = new
-                        {
-                            content
-                        }
-                    }
+                    richTextBlocks.Add(CreateRichTextBlock(plainText, new TextAnnotations()));
                 }
             }
+
+            // Add the formatted segment
+            richTextBlocks.Add(CreateRichTextBlock(segment.Text, segment.Annotations));
+            lastEnd = segment.Start + (segment.End - segment.Start);
+        }
+
+        // Add any remaining plain text
+        if (lastEnd < markdown.Length)
+        {
+            string remainingText = markdown.Substring(lastEnd);
+            if (!string.IsNullOrEmpty(remainingText))
+            {
+                richTextBlocks.Add(CreateRichTextBlock(remainingText, new TextAnnotations()));
+            }
+        }
+
+        return richTextBlocks.ToArray();
+    }
+
+    private class TextAnnotations
+    {
+        public bool Bold { get; set; }
+        public bool Italic { get; set; }
+        public bool Strikethrough { get; set; }
+        public bool Underline { get; set; }
+        public bool Code { get; set; }
+        public string Color { get; set; } = "default";
+    }
+
+    private static object CreateRichTextBlock(string content, TextAnnotations annotations)
+    {
+        return new
+        {
+            type = "text",
+            text = new
+            {
+                content = content,
+                link = (string?)null
+            },
+            annotations = new
+            {
+                bold = annotations.Bold,
+                italic = annotations.Italic,
+                strikethrough = annotations.Strikethrough,
+                underline = annotations.Underline,
+                code = annotations.Code,
+                color = annotations.Color
+            },
+            plain_text = content,
+            href = (string?)null
         };
     }
 }

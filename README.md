@@ -20,6 +20,7 @@ NotionBae provides the following tools for interacting with Notion:
 | Tool Name | Description | Parameters |
 |-----------|-------------|------------|
 | Search    | Searches Notion pages and returns their titles and public URLs | `query`: String - The search query to find matching pages in Notion |
+| CreatePage | Creates a new Notion page with the given title, description, and content | `parentId`: String - ID of the parent page<br>`title`: String - Title of the new page<br>`description`: String - Description for the page<br>`content`: String - Markdown content for the page |
 
 ## Getting Started
 
