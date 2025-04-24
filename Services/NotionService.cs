@@ -9,6 +9,8 @@ public interface INotionService
 {
     Task<HttpResponseMessage> Search(string query);
     Task<HttpResponseMessage> CreatePage(string parentId, string title, string description, string content);
+    Task<HttpResponseMessage> RetrievePage(string pageId);
+    Task<HttpResponseMessage> RetrieveBlockChildren(string blockId);
 }
 
 public class NotionService : INotionService
@@ -73,5 +75,15 @@ public class NotionService : INotionService
             "application/json");
             
         return await _httpclient.PostAsync(endpoint, jsonContent);
+    }
+
+    public async Task<HttpResponseMessage> RetrievePage(string pageId)
+    {
+        return await _httpclient.GetAsync($"pages/{pageId}");
+    }
+
+    public async Task<HttpResponseMessage> RetrieveBlockChildren(string blockId)
+    {
+        return await _httpclient.GetAsync($"blocks/{blockId}/children");
     }
 }
