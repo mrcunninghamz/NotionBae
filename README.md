@@ -26,7 +26,44 @@ NotionBae provides the following tools for interacting with Notion:
 
 ## Getting Started
 
-### MCP Server Configuration
+### 1. Notion Account Setup
+
+1. **Create a Notion Account**: If you don't already have one, sign up for a Notion account at [notion.so](https://www.notion.so/).
+   
+2. **Create a Notion Integration**:
+   - Go to [Notion Developers](https://www.notion.so/my-integrations)
+   - Click "New integration"
+   - Give your integration a name (e.g., "NotionBae")
+   - Select the workspace where you want to use the integration
+   - Set appropriate capabilities (at minimum, select "Read content" and "Update content")
+   - Click "Submit" to create your integration
+
+3. **Get your API Key**:
+   - After creating the integration, you'll see your "Internal Integration Secret" (API key)
+   - Copy this key as you'll need it for configuring NotionBae
+
+4. **Share Pages with your Integration**:
+   - Open a Notion page you want to access through NotionBae
+   - Click "Share" in the top right
+   - In the "Add people, groups, or integrations" field, search for your integration name
+   - Select your integration to grant it access to the page
+
+### 2. Clone and Setup NotionBae
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/mrcunninghamz/NotionBae.git /path/to/your/directory
+   cd /path/to/your/directory
+   ```
+   
+   Replace `/path/to/your/directory` with the actual directory path where you want to clone the repository (e.g., `~/projects/NotionBae` or `/Users/username/Documents/Projects/NotionBae`).
+
+2. **Build the project**:
+   ```bash
+   dotnet build
+   ```
+
+### 3. MCP Server Configuration
 
 To use NotionBae as an MCP server in VS Code, add the following configuration to your VS Code `settings.json` file:
 
@@ -79,18 +116,32 @@ You can obtain a Notion API key by creating an integration in your Notion worksp
 
 ### Running the Server
 
-The MCP server is implemented in the `Program.cs` file and can be run directly using:
+There are several ways to start the NotionBae MCP server:
 
-```
-dotnet run
-```
+1. **Using VS Code Commands**:
+   - Open the Command Palette (`Cmd+Shift+P` on Mac or `Ctrl+Shift+P` on Windows/Linux)
+   - Type "MCP: Start Server" and select it from the dropdown
+   - Choose "NotionBae" from the list of available servers
 
-from the project directory.
+2. **Using Context Menu**:
+   - In your VS Code settings.json file, hover over the server name ("NotionBae")
+   - Click on the "Start Server" button that appears above the server configuration
+   - VS Code will prompt you for your Notion API key (as configured in the inputs section)
+
+3. **Direct Command Line** (alternative method):
+   - You can also run the server directly using the command line from the project directory:
+   ```
+   dotnet run
+   ```
+   - Note: When using this method, you'll need to ensure the NotionApiKey environment variable is set separately
+
+Once the server is running, it will be available for use with compatible AI assistants that support the Model Context Protocol.
 
 ## Related Projects
 
 This project is part of the "Bae" collection of tools:
-- TestBae - Testing utilities
-- AzBae - Azure tooling
+
+- [TestBae](https://github.com/mrcunninghamz/TestBae) - A .NET testing utility library that simplifies test setup with fixtures, mocks, and common testing patterns for more efficient and maintainable test suites.
+- [AzBae](https://github.com/mrcunninghamz/AzBae) - Azure DevOps tooling that provides both CLI and GUI interfaces to streamline Azure resource management, deployments, and DevOps workflows.
 
 ## License
