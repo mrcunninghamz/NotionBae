@@ -77,27 +77,28 @@ public class PageTool
         }
     }
     
-    [McpServerTool(Name = "nb_get_page"), Description("Retrieves a Notion page by its ID.")]
-    public async Task<string> GetPage(string pageId)
+    [McpServerTool(Name = "nb_get_page_content"), Description("Retrieves a Notion page with its metadata and full content in markdown format.")]
+    public async Task<string> GetPageContent(string pageId)
     {
-        _logger.LogInformation("Retrieving Notion page with ID: {PageId}", pageId);
+        _logger.LogInformation("Retrieving Notion page content with ID: {PageId}", pageId);
         
         try
         {
-            var response = await _notionService.RetrievePage(pageId);
+            // Get page metadata
+            var pageResponse = await _notionService.RetrievePage(pageId);
             
-            if (!response.IsSuccessStatusCode)
+            if (!pageResponse.IsSuccessStatusCode)
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
+                var errorContent = await pageResponse.Content.ReadAsStringAsync();
                 var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
                 
-                _logger.LogError("Error retrieving Notion page: {StatusCode} with message: {Message}", 
-                    response.StatusCode, detailedError);
-                return $"Error retrieving Notion page: {response.StatusCode}\nDetails: {detailedError}";
+                _logger.LogError("Error retrieving Notion page metadata: {StatusCode} with message: {Message}", 
+                    pageResponse.StatusCode, detailedError);
+                return $"Error retrieving Notion page metadata: {pageResponse.StatusCode}\nDetails: {detailedError}";
             }
 
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var pageResult = JsonDocument.Parse(responseContent);
+            var pageResponseContent = await pageResponse.Content.ReadAsStringAsync();
+            var pageResult = JsonDocument.Parse(pageResponseContent);
             
             var privateUrl = "";
             var publicUrl = "";
@@ -128,13 +129,49 @@ public class PageTool
                 }
             }
             
-            _logger.LogInformation("Page retrieved successfully with ID: {PageId}", pageId);
-            return $"Page retrieved successfully!\nID: {pageId}\nTitle: {title}\nPrivate URL: {privateUrl}\nPublic URL: {publicUrl}";
+            // Get page content
+            var contentResponse = await _notionService.RetrieveBlockChildren(pageId);
+            
+            if (!contentResponse.IsSuccessStatusCode)
+            {
+                var errorContent = await contentResponse.Content.ReadAsStringAsync();
+                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
+                
+                _logger.LogError("Error retrieving Notion page content: {StatusCode} with message: {Message}", 
+                    contentResponse.StatusCode, detailedError);
+                return $"Error retrieving Notion page content: {contentResponse.StatusCode}\nDetails: {detailedError}";
+            }
+
+            var contentResponseContent = await contentResponse.Content.ReadAsStringAsync();
+            var blockResult = JsonDocument.Parse(contentResponseContent);
+            
+            string markdown = "No content found";
+            if (blockResult.RootElement.TryGetProperty("results", out var results))
+            {
+                markdown = NotionToMarkdownConverter.ConvertToMarkdown(results);
+            }
+            
+            // Combine metadata and content into a single response
+            var response = $"""
+                # {title}
+                
+                ## Page Information
+                - **ID**: {pageId}
+                - **Private URL**: {privateUrl}
+                - **Public URL**: {publicUrl}
+                
+                ## Page Content
+                
+                {markdown}
+                """;
+            
+            _logger.LogInformation("Successfully retrieved page content for ID: {PageId}", pageId);
+            return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception occurred while retrieving Notion page: {Message}", ex.Message);
-            return $"Exception occurred while retrieving Notion page: {ex.Message}";
+            _logger.LogError(ex, "Exception occurred while retrieving Notion page content: {Message}", ex.Message);
+            return $"Exception occurred while retrieving Notion page content: {ex.Message}";
         }
     }
 }
