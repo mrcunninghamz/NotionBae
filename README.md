@@ -21,8 +21,7 @@ NotionBae provides the following tools for interacting with Notion:
 |-----------|-------------|------------|
 | nb_search | Searches Notion pages and returns their titles and public URLs | `query`: String - The search query to find matching pages in Notion |
 | nb_create_page | Creates a new Notion page with the given title, description, and content | `parentId`: String - ID of the parent page<br>`title`: String - Title of the new page<br>`description`: String - Description for the page<br>`content`: String - Markdown content for the page |
-| nb_get_page | Retrieves a Notion page by its ID | `pageId`: String - ID of the page to retrieve |
-| nb_retrieve_block_children | Retrieves children blocks of a specified block or page ID and converts them to markdown. In other words, it gets the content of a Notion page or block and converts it to markdown | `blockId`: String - ID of the block or page to retrieve content from |
+| nb_get_page_content | Retrieves a Notion page with its metadata and full content in markdown format | `pageId`: String - ID of the page to retrieve |
 
 ## Getting Started
 
