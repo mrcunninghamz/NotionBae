@@ -2,8 +2,200 @@ using System.Text.RegularExpressions;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace NotionBae.Utilities;
+
+/// <summary>
+/// Base class for all Notion blocks
+/// </summary>
+public abstract class NotionBlock
+{
+    [JsonPropertyName("object")]
+    public string Object { get; set; } = "block";
+    
+    [JsonPropertyName("type")]
+    public string Type { get; set; }
+}
+/// <summary>
+/// Base class for heading blocks in Notion
+/// </summary>
+public abstract class HeadingBlock : NotionBlock
+{
+    protected HeadingBlock(string level)
+    {
+        Type = level;
+    }
+}
+
+/// <summary>
+/// Represents a level 1 heading block in Notion
+/// </summary>
+public class Heading1Block : HeadingBlock
+{
+    [JsonPropertyName("heading_1")]
+    public HeadingContent Content { get; set; }
+
+    public Heading1Block(object[] richText) : base("heading_1")
+    {
+        Content = new HeadingContent
+        {
+            RichText = richText
+        };
+    }
+}
+
+/// <summary>
+/// Represents a level 2 heading block in Notion  
+/// </summary>
+public class Heading2Block : HeadingBlock
+{
+    [JsonPropertyName("heading_2")]
+    public HeadingContent Content { get; set; }
+
+    public Heading2Block(object[] richText) : base("heading_2")
+    {
+        Content = new HeadingContent
+        {
+            RichText = richText
+        };
+    }
+}
+
+/// <summary>
+/// Represents a level 3 heading block in Notion
+/// </summary>
+public class Heading3Block : HeadingBlock
+{
+    [JsonPropertyName("heading_3")]
+    public HeadingContent Content { get; set; }
+
+    public Heading3Block(object[] richText) : base("heading_3")
+    {
+        Content = new HeadingContent
+        {
+            RichText = richText
+        };
+    }
+}
+
+public class HeadingContent
+{
+    [JsonPropertyName("rich_text")]
+    public object[] RichText { get; set; }
+}
+
+/// <summary>
+/// Represents a paragraph block in Notion
+/// </summary>
+public class ParagraphBlock : NotionBlock
+{
+    [JsonPropertyName("paragraph")]
+    public ParagraphContent Paragraph { get; set; }
+
+    public ParagraphBlock(object[] richText)
+    {
+        Type = "paragraph";
+        Paragraph = new ParagraphContent
+        {
+            RichText = richText,
+            Children = new List<object>()
+        };
+    }
+}
+
+public class ParagraphContent
+{
+    [JsonPropertyName("rich_text")]
+    public object[] RichText { get; set; }
+    
+    [JsonPropertyName("children")]
+    public List<object> Children { get; set; }
+}
+
+/// <summary>
+/// Represents a code block in Notion
+/// </summary>
+public class CodeBlock : NotionBlock
+{
+    [JsonPropertyName("code")]
+    public CodeContent Code { get; set; }
+
+    public CodeBlock(object[] richText, string language)
+    {
+        Type = "code";
+        Code = new CodeContent
+        {
+            RichText = richText,
+            Language = language
+        };
+    }
+}
+
+public class CodeContent
+{
+    [JsonPropertyName("rich_text")]
+    public object[] RichText { get; set; }
+    
+    [JsonPropertyName("language")]
+    public string Language { get; set; }
+}
+
+/// <summary>
+/// Represents a bulleted list item block in Notion
+/// </summary>
+public class BulletedListBlock : NotionBlock
+{
+    [JsonPropertyName("bulleted_list_item")]
+    public BulletedListContent BulletedListItem { get; set; }
+
+    public BulletedListBlock(object[] richText)
+    {
+        Type = "bulleted_list_item";
+        BulletedListItem = new BulletedListContent
+        {
+            RichText = richText,
+            Children = new List<object>()
+        };
+    }
+}
+
+public class BulletedListContent
+{
+    [JsonPropertyName("rich_text")]
+    public object[] RichText { get; set; }
+    
+    [JsonPropertyName("children")]
+    public List<object> Children { get; set; }
+}
+
+/// <summary>
+/// Represents a numbered list item block in Notion
+/// </summary>
+public class NumberedListBlock : NotionBlock
+{
+    [JsonPropertyName("numbered_list_item")]
+    public NumberedListContent NumberedListItem { get; set; }
+
+    public NumberedListBlock(object[] richText)
+    {
+        Type = "numbered_list_item";
+        NumberedListItem = new NumberedListContent
+        {
+            RichText = richText,
+            Children = new List<object>()
+        };
+    }
+}
+
+public class NumberedListContent
+{
+    [JsonPropertyName("rich_text")]
+    public object[] RichText { get; set; }
+    
+    [JsonPropertyName("children")]
+    public List<object> Children { get; set; }
+}
 
 /// <summary>
 /// Utility class to convert Markdown text into Notion API block format
@@ -116,7 +308,7 @@ public class MarkdownToNotionConverter
                     if (i + 1 < lines.Length && GetIndentationLevel(lines[i + 1]) > indentLevel)
                     {
                         blockStack.Push((indentLevel + 1,
-                            ((dynamic) bulletBlock).bulleted_list_item.children = new List<object>()));
+                            ((BulletedListBlock)bulletBlock).BulletedListItem.Children));
                     }
 
                     break;
@@ -132,7 +324,7 @@ public class MarkdownToNotionConverter
                         if (i + 1 < lines.Length && GetIndentationLevel(lines[i + 1]) > indentLevel)
                         {
                             blockStack.Push((indentLevel + 1,
-                                ((dynamic) numberBlock).numbered_list_item.children = new List<object>()));
+                                ((NumberedListBlock)numberBlock).NumberedListItem.Children));
                         }
                     }
 
@@ -153,47 +345,30 @@ public class MarkdownToNotionConverter
     /// <summary>
     /// Creates a heading block
     /// </summary>
-    private static object CreateHeadingBlock(string content, string level = "heading_3")
+    private static HeadingBlock CreateHeadingBlock(string content, string level = "heading_3")
     {
-        var result = new Dictionary<string, object>
+        var richText = RichTextConverter.ConvertToRichText(content);
+        return level switch
         {
-            {"object", "block"},
-            {"type", level}
+            "heading_1" => new Heading1Block(richText),
+            "heading_2" => new Heading2Block(richText),
+            _ => new Heading3Block(richText)
         };
-
-        var headingContent = new Dictionary<string, object>
-        {
-            {
-                "rich_text",
-                RichTextConverter.ConvertToRichText(content)
-            }
-        };
-
-        result.Add(level, headingContent);
-
-        return result;
     }
 
     /// <summary>
     /// Creates a paragraph block
     /// </summary>
-    private static object CreateParagraphBlock(string content)
+    private static ParagraphBlock CreateParagraphBlock(string content)
     {
-        return new
-        {
-            @object = "block",
-            type = "paragraph",
-            paragraph = new
-            {
-                rich_text = RichTextConverter.ConvertToRichText(content)
-            }
-        };
+        var richText = RichTextConverter.ConvertToRichText(content);
+        return new ParagraphBlock(richText);
     }
 
     /// <summary>
     /// Creates a code block with validation for supported languages
     /// </summary>
-    private static object CreateCodeBlock(string content, string language)
+    private static CodeBlock CreateCodeBlock(string content, string language)
     {
         string normalizedLanguage = language.ToLowerInvariant().Trim();
 
@@ -202,48 +377,26 @@ public class MarkdownToNotionConverter
             normalizedLanguage = DefaultLanguage;
         }
 
-        return new
-        {
-            @object = "block",
-            type = "code",
-            code = new
-            {
-                rich_text = RichTextConverter.ConvertToRichText(content),
-                language = normalizedLanguage
-            }
-        };
+        var richText = RichTextConverter.ConvertToRichText(content);
+        return new CodeBlock(richText, normalizedLanguage);
     }
 
     /// <summary>
     /// Creates a bulleted list item block
     /// </summary>
-    private static object CreateBulletedListBlock(string content)
+    private static BulletedListBlock CreateBulletedListBlock(string content)
     {
-        return new
-        {
-            @object = "block",
-            type = "bulleted_list_item",
-            bulleted_list_item = new
-            {
-                rich_text = RichTextConverter.ConvertToRichText(content)
-            }
-        };
+        var richText = RichTextConverter.ConvertToRichText(content);
+        return new BulletedListBlock(richText);
     }
 
     /// <summary>
     /// Creates a numbered list item block
     /// </summary>
-    private static object CreateNumberedListBlock(string content)
+    private static NumberedListBlock CreateNumberedListBlock(string content)
     {
-        return new
-        {
-            @object = "block",
-            type = "numbered_list_item",
-            numbered_list_item = new
-            {
-                rich_text = RichTextConverter.ConvertToRichText(content)
-            }
-        };
+        var richText = RichTextConverter.ConvertToRichText(content);
+        return new NumberedListBlock(richText);
     }
 }
 
