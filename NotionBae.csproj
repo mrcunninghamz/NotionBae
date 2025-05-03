@@ -18,10 +18,22 @@
     <None Update="appsettings.local.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Remove="NotionBae.Tests\**" />
+    <None Remove="NotionBae\**" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Models\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="NotionBae.Tests\**" />
+    <Compile Remove="NotionBae\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="NotionBae.Tests\**" />
+    <EmbeddedResource Remove="NotionBae\**" />
   </ItemGroup>
 
 </Project>
