@@ -136,6 +136,34 @@ There are several ways to start the NotionBae MCP server:
 
 Once the server is running, it will be available for use with compatible AI assistants that support the Model Context Protocol.
 
+## MCP Inspector
+
+NotionBae is compatible with the Model Context Protocol (MCP) Inspector tool, which helps you validate and debug your MCP server implementation.
+
+### What is MCP Inspector?
+
+The MCP Inspector is a command-line utility that allows you to:
+- Validate that your MCP server conforms to the MCP specification
+- Test your server's responses to various requests
+- Debug issues with tool execution and response handling
+- Explore the capabilities and schema of your server
+
+### Running the Inspector with NotionBae
+
+To run the MCP Inspector with NotionBae, navigate to your NotionBae project directory and execute:
+
+```bash
+npx @modelcontextprotocol/inspector dotnet run
+```
+
+This command will:
+1. Start your NotionBae MCP server using `dotnet run`
+2. Launch the MCP Inspector, which will connect to your running server
+3. Validate your server implementation against the MCP specification
+4. Provide a detailed report of any issues or recommendations
+
+The inspector will help ensure that NotionBae is properly implementing the MCP protocol and that all tools are correctly defined and functioning.
+
 ## Related Projects
 
 This project is part of the "Bae" collection of tools:
