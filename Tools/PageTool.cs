@@ -145,26 +145,22 @@ public class PageTool
             }
 
             var contentResponseContent = await contentResponse.Content.ReadAsStringAsync();
-            // var blockResult = JsonDocument.Parse(contentResponseContent);
-            //
-            // string markdown = "No content found";
-            // if (blockResult.RootElement.TryGetProperty("results", out var results))
-            // {
-            //     markdown = NotionToMarkdownConverter.ConvertToMarkdown(results);
-            // }
+            var blockResult = JsonDocument.Parse(contentResponseContent);
+            
+            string markdown = "No content found";
+            if (blockResult.RootElement.TryGetProperty("results", out var results))
+            {
+                markdown = NotionToMarkdownConverter.ConvertToMarkdown(results);
+            }
 
             // Combine metadata and content into a single response
             var response = $"""
-                            # {title}
-
-                            ## Page Information
-                            - **ID**: {pageId}
-                            - **Private URL**: {privateUrl}
-                            - **Public URL**: {publicUrl}
-
-                            ## Page Content
-
-                            {contentResponseContent}
+                            ---
+                            - pageid: {pageId}
+                            - privateUrl: {privateUrl}
+                            - publicUrl: {publicUrl}
+                            ---
+                            {markdown}
                             """;
 
             _logger.LogInformation("Successfully retrieved page content for ID: {PageId}", pageId);
@@ -268,20 +264,20 @@ public class PageTool
         }
     }
 
-    [McpServerTool(Name = "nb_delete_block"), Description("Deletes a Notion block with the specified ID.")]
-    public async Task<string> DeleteBlock(string blockId)
+    [McpServerTool(Name = "nb_delete_blocks"), Description("Deletes a Notion block with the specified Ids. When deleting sections send a list of blockIds for better efficiency.")]
+    public async Task<string> DeleteBlocks(List<string> blockIds)
     {
-        _logger.LogInformation("Deleting Notion block with ID: {BlockId}", blockId);
-        Guard.Argument(blockId, nameof(blockId))
+        _logger.LogInformation("Deleting Notion block with ID: {BlockId}", blockIds);
+        Guard.Argument(blockIds, nameof(blockIds))
             .NotNull()
             .NotEmpty();
 
         try
         {
-            var response = await _notionService.DeleteBlock(blockId);
+            foreach(var id in blockIds){
+                var response = await _notionService.DeleteBlock(id);
 
-            if (!response.IsSuccessStatusCode)
-            {
+                if (response.IsSuccessStatusCode) continue;
                 var errorContent = await response.Content.ReadAsStringAsync();
                 var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
 
@@ -290,8 +286,8 @@ public class PageTool
                 return $"Error deleting Notion block: {response.StatusCode}\nDetails: {detailedError}";
             }
 
-            _logger.LogInformation("Successfully deleted block with ID: {BlockId}", blockId);
-            return $"Block deleted successfully!\nID: {blockId}";
+            _logger.LogInformation("Successfully deleted block with ID: {BlockId}", blockIds);
+            return $"Block deleted successfully!\nID: {blockIds}";
         }
         catch (Exception ex)
         {
@@ -301,7 +297,9 @@ public class PageTool
     }
     
     [McpServerTool(Name = "nb_update_page_content"),
-    Description("Updates a Notion page's content using markdown format.")]
+    Description("Deletes all the content in the page and creates new content using markdown format. " +
+                "Do this if you want to replace the entire page content with new content. " +
+                "If you want to append new content to the page, use the 'nb_append_block_content' tool instead.")]
     public async Task<string> UpdatePageContent(string pageId, string content)
     {
         _logger.LogInformation("Updating content for Notion page with ID: {PageId}", pageId);
@@ -351,6 +349,46 @@ public class PageTool
         {
             _logger.LogError(ex, "Exception occurred while updating Notion page content: {Message}", ex.Message);
             return $"Exception occurred while updating Notion page content: {ex.Message}";
+        }
+    }
+    
+    [McpServerTool(Name = "nb_append_block_content"),
+    Description("Appends a new block to an existing Notion page using markdown format. " +
+                "If given a specific block id, you can append the new block after the specified block.")]
+    public async Task<string> AppendPageContent(
+        string pageId, 
+        string content, 
+        [Description("The parent blockId of a specific block to append after.")]
+        string parentBlockId)
+    {
+        _logger.LogInformation("Appending content to Notion page with ID: {PageId}", pageId);
+        Guard.Argument(pageId, nameof(pageId))
+            .NotNull()
+            .NotEmpty();
+        Guard.Argument(content, nameof(content))
+            .NotNull();
+    
+        try
+        {
+            var response = await _notionService.AppendBlockChildren(pageId, content, parentBlockId);
+    
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
+    
+                _logger.LogError("Error appending Notion page content: {StatusCode} with message: {Message}",
+                    response.StatusCode, detailedError);
+                return $"Error appending Notion page content: {response.StatusCode}\nDetails: {detailedError}";
+            }
+    
+            _logger.LogInformation("Successfully appended content to page ID: {PageId}", pageId);
+            return $"Page content appended successfully!\nID: {pageId}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred while appending Notion page content: {Message}", ex.Message);
+            return $"Exception occurred while appending Notion page content: {ex.Message}";
         }
     }
 }
