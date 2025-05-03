@@ -42,83 +42,88 @@ public class MarkdownToNotionConverter
             else
                 break;
         }
+
         return spaces / 2;
     }
-    
+
     public static List<object> ConvertToNotionBlocks(string markdown)
     {
         var blocks = new List<object>();
         var blockStack = new Stack<(int Level, List<object> Children)>();
         blockStack.Push((0, blocks));
-        
+
         // Split the markdown into lines for processing
-        var lines = markdown.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-        
+        var lines = markdown.Split(new[] {"\r\n", "\r", "\n"}, StringSplitOptions.None);
+
         for (int i = 0; i < lines.Length; i++)
         {
             var line = lines[i];
-            
+
             // Skip empty lines
             if (string.IsNullOrWhiteSpace(line))
                 continue;
-                
+
             var indentLevel = GetIndentationLevel(line);
             var trimmedLine = line.Trim();
-    
+
             // Adjust stack based on indentation
             while (blockStack.Count > 1 && blockStack.Peek().Level >= indentLevel)
             {
                 blockStack.Pop();
             }
-            switch (true)
+
+            switch (trimmedLine)
             {
                 // Headings
-                case bool when Regex.IsMatch(trimmedLine, @"^#{3,}\s"):
+                case var _ when Regex.IsMatch(trimmedLine, @"^#{3,}\s"):
                 {
-                    blockStack.Peek().Children.Add(CreateHeadingBlock(trimmedLine[(trimmedLine.IndexOf(' ') + 1)..], "heading_3"));
+                    blockStack.Peek().Children
+                        .Add(CreateHeadingBlock(trimmedLine[(trimmedLine.IndexOf(' ') + 1)..], "heading_3"));
                     break;
                 }
-                case bool when trimmedLine.StartsWith("## "):
+                case var _ when trimmedLine.StartsWith("## "):
                 {
-                    blockStack.Peek().Children.Add(CreateHeadingBlock(trimmedLine.Substring(3), "heading_2")); 
+                    blockStack.Peek().Children.Add(CreateHeadingBlock(trimmedLine.Substring(3), "heading_2"));
                     break;
                 }
-                case bool when trimmedLine.StartsWith("# "):
+                case var _ when trimmedLine.StartsWith("# "):
                 {
                     blockStack.Peek().Children.Add(CreateHeadingBlock(trimmedLine.Substring(2), "heading_1"));
                     break;
                 }
                 // Code blocks
-                case bool when trimmedLine.StartsWith("```"):
+                case var _ when trimmedLine.StartsWith("```"):
                 {
                     var codeContent = new StringBuilder();
                     var language = trimmedLine.Length > 3 ? trimmedLine.Substring(3).Trim() : "";
-                    
+
                     i++; // Skip the opening ```
-                    
+
                     while (i < lines.Length && !lines[i].Trim().StartsWith("```"))
                     {
                         codeContent.AppendLine(lines[i]);
                         i++;
                     }
-                    
+
                     blockStack.Peek().Children.Add(CreateCodeBlock(codeContent.ToString(), language));
                     break;
-                                    }
-                                    // Bullet lists    
-                                    case bool when trimmedLine.StartsWith("- ") || trimmedLine.StartsWith("* "):
-                                    {
+                }
+                // Bullet lists    
+                case var _ when trimmedLine.StartsWith("- ") || trimmedLine.StartsWith("* "):
+                {
                     var bulletBlock = CreateBulletedListBlock(trimmedLine.Substring(2));
                     blockStack.Peek().Children.Add(bulletBlock);
                     if (i + 1 < lines.Length && GetIndentationLevel(lines[i + 1]) > indentLevel)
                     {
-                        blockStack.Push((indentLevel + 1, ((dynamic)bulletBlock).bulleted_list_item.children = new List<object>()));
+                        blockStack.Push((indentLevel + 1,
+                            ((dynamic) bulletBlock).bulleted_list_item.children = new List<object>()));
                     }
+
                     break;
-                                    }
-                                    // Numbered lists
-                                    case bool when Regex.IsMatch(trimmedLine, @"^\d+\.\s"):
-                                    {
+                }
+                // Numbered lists
+                case var _ when Regex.IsMatch(trimmedLine, @"^\d+\.\s"):
+                {
                     var match = Regex.Match(trimmedLine, @"^\d+\.\s(.+)$");
                     if (match.Success)
                     {
@@ -126,23 +131,25 @@ public class MarkdownToNotionConverter
                         blockStack.Peek().Children.Add(numberBlock);
                         if (i + 1 < lines.Length && GetIndentationLevel(lines[i + 1]) > indentLevel)
                         {
-                            blockStack.Push((indentLevel + 1, ((dynamic)numberBlock).numbered_list_item.children = new List<object>()));
+                            blockStack.Push((indentLevel + 1,
+                                ((dynamic) numberBlock).numbered_list_item.children = new List<object>()));
                         }
                     }
+
                     break;
-                                    }
-                                    // Regular paragraph
-                                    default:
-                                    {
+                }
+                // Regular paragraph
+                default:
+                {
                     blockStack.Peek().Children.Add(CreateParagraphBlock(trimmedLine));
                     break;
                 }
             }
         }
-        
+
         return blocks;
     }
-    
+
     /// <summary>
     /// Creates a heading block
     /// </summary>
@@ -150,14 +157,14 @@ public class MarkdownToNotionConverter
     {
         var result = new Dictionary<string, object>
         {
-            { "object", "block" },
-            { "type", level }
+            {"object", "block"},
+            {"type", level}
         };
 
         var headingContent = new Dictionary<string, object>
         {
-            { 
-                "rich_text", 
+            {
+                "rich_text",
                 RichTextConverter.ConvertToRichText(content)
             }
         };
@@ -166,7 +173,7 @@ public class MarkdownToNotionConverter
 
         return result;
     }
-    
+
     /// <summary>
     /// Creates a paragraph block
     /// </summary>
@@ -182,19 +189,19 @@ public class MarkdownToNotionConverter
             }
         };
     }
-    
+
     /// <summary>
     /// Creates a code block with validation for supported languages
     /// </summary>
     private static object CreateCodeBlock(string content, string language)
     {
         string normalizedLanguage = language.ToLowerInvariant().Trim();
-        
+
         if (!SupportedLanguages.Contains(normalizedLanguage))
         {
             normalizedLanguage = DefaultLanguage;
         }
-        
+
         return new
         {
             @object = "block",
@@ -206,7 +213,7 @@ public class MarkdownToNotionConverter
             }
         };
     }
-    
+
     /// <summary>
     /// Creates a bulleted list item block
     /// </summary>
@@ -222,7 +229,7 @@ public class MarkdownToNotionConverter
             }
         };
     }
-    
+
     /// <summary>
     /// Creates a numbered list item block
     /// </summary>
@@ -250,23 +257,26 @@ public class RichTextConverter
         // Regex pattern to match different Markdown patterns
         var patterns = new[]
         {
-            (@"(?<![*_])[*_](?![*_])(.+?)(?<![*_])[*_](?![*_])", new TextAnnotations { Italic = true }), // *italic* or _italic_
-            (@"(?<![*_])[*_]{2}(?![*_])(.+?)(?<![*_])[*_]{2}(?![*_])", new TextAnnotations { Bold = true }), // **bold** or __bold__
-            (@"(?<![*_])[*_]{3}(?![*_])(.+?)(?<![*_])[*_]{3}(?![*_])", new TextAnnotations { Bold = true, Italic = true }), // ***bold+italic*** or ___bold+italic___
-            (@"~~(.+?)~~", new TextAnnotations { Strikethrough = true }), // ~~strikethrough~~
-            (@"(?<!`)`(?!`)(.+?)(?<!`)`(?!`)", new TextAnnotations { Code = true }), // `code`
+            (@"(?<![*_])[*_](?![*_])(.+?)(?<![*_])[*_](?![*_])",
+                new TextAnnotations {Italic = true}), // *italic* or _italic_
+            (@"(?<![*_])[*_]{2}(?![*_])(.+?)(?<![*_])[*_]{2}(?![*_])",
+                new TextAnnotations {Bold = true}), // **bold** or __bold__
+            (@"(?<![*_])[*_]{3}(?![*_])(.+?)(?<![*_])[*_]{3}(?![*_])",
+                new TextAnnotations {Bold = true, Italic = true}), // ***bold+italic*** or ___bold+italic___
+            (@"~~(.+?)~~", new TextAnnotations {Strikethrough = true}), // ~~strikethrough~~
+            (@"(?<!`)`(?!`)(.+?)(?<!`)`(?!`)", new TextAnnotations {Code = true}), // `code`
         };
 
         // Find all markdown patterns and their positions
         var segments = new List<(int Start, int End, string Text, TextAnnotations Annotations)>();
-        
+
         // Add initial text if it exists
         foreach (var (pattern, annotations) in patterns)
         {
             var matches = Regex.Matches(markdown, pattern);
             foreach (Match match in matches)
             {
-                segments.Add((match.Index, match.Index + match.Length, 
+                segments.Add((match.Index, match.Index + match.Length,
                     match.Groups[1].Value, annotations));
             }
         }
@@ -324,7 +334,7 @@ public class RichTextConverter
             text = new
             {
                 content = content,
-                link = (string?)null
+                link = (string?) null
             },
             annotations = new
             {
@@ -336,7 +346,7 @@ public class RichTextConverter
                 color = annotations.Color
             },
             plain_text = content,
-            href = (string?)null
+            href = (string?) null
         };
     }
 }
