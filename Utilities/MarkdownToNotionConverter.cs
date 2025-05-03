@@ -32,9 +32,24 @@ public class MarkdownToNotionConverter
     /// </summary>
     /// <param name="markdown">The markdown text to convert</param>
     /// <returns>A list of objects representing Notion blocks</returns>
+    private static int GetIndentationLevel(string line)
+    {
+        int spaces = 0;
+        foreach (char c in line)
+        {
+            if (c == ' ')
+                spaces++;
+            else
+                break;
+        }
+        return spaces / 2;
+    }
+    
     public static List<object> ConvertToNotionBlocks(string markdown)
     {
         var blocks = new List<object>();
+        var blockStack = new Stack<(int Level, List<object> Children)>();
+        blockStack.Push((0, blocks));
         
         // Split the markdown into lines for processing
         var lines = markdown.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
@@ -47,57 +62,81 @@ public class MarkdownToNotionConverter
             if (string.IsNullOrWhiteSpace(line))
                 continue;
                 
-            // Check for headings
-            if (line.StartsWith("### "))
+            var indentLevel = GetIndentationLevel(line);
+            var trimmedLine = line.Trim();
+    
+            // Adjust stack based on indentation
+            while (blockStack.Count > 1 && blockStack.Peek().Level >= indentLevel)
             {
-                blocks.Add(CreateHeadingBlock(line.Substring(4), "heading_3"));
+                blockStack.Pop();
             }
-            else if (line.StartsWith("## "))
+            switch (true)
             {
-                blocks.Add(CreateHeadingBlock(line.Substring(3), "heading_2"));
-            }
-            else if (line.StartsWith("# "))
-            {
-                blocks.Add(CreateHeadingBlock(line.Substring(2), "heading_1"));
-            }
-            // Check for code blocks
-            else if (line.Trim().StartsWith("```"))
-            {
-                var codeContent = new StringBuilder();
-                var trimmedLine = line.Trim();
-                
-                var language = trimmedLine.Length > 3 ? trimmedLine.Substring(3).Trim() : "";
-                
-                i++; // Skip the opening ```
-                
-                // Collect all code lines until closing ```
-                while (i < lines.Length && !lines[i].Trim().StartsWith("```"))
+                // Headings
+                case bool when Regex.IsMatch(trimmedLine, @"^#{3,}\s"):
                 {
-                    codeContent.AppendLine(lines[i]);
-                    i++;
+                    blockStack.Peek().Children.Add(CreateHeadingBlock(trimmedLine[(trimmedLine.IndexOf(' ') + 1)..], "heading_3"));
+                    break;
                 }
-                
-                blocks.Add(CreateCodeBlock(codeContent.ToString(), language));
-            }
-            // Check for bullet lists
-            else if (line.Trim().StartsWith("- ") || line.Trim().StartsWith("* "))
-            {
-                var trimmedLine = line.Trim();
-                blocks.Add(CreateBulletedListBlock(trimmedLine.Substring(2)));
-            }
-            // Check for numbered lists
-            else if (Regex.IsMatch(line, @"^[\s\t]*\d+\.\s"))
-            {
-                var match = Regex.Match(line, @"^[\s\t]*\d+\.\s(.+)$");
-                if (match.Success)
+                case bool when trimmedLine.StartsWith("## "):
                 {
-                    blocks.Add(CreateNumberedListBlock(match.Groups[1].Value));
+                    blockStack.Peek().Children.Add(CreateHeadingBlock(trimmedLine.Substring(3), "heading_2")); 
+                    break;
                 }
-            }
-            // Regular paragraph
-            else
-            {
-                blocks.Add(CreateParagraphBlock(line));
+                case bool when trimmedLine.StartsWith("# "):
+                {
+                    blockStack.Peek().Children.Add(CreateHeadingBlock(trimmedLine.Substring(2), "heading_1"));
+                    break;
+                }
+                // Code blocks
+                case bool when trimmedLine.StartsWith("```"):
+                {
+                    var codeContent = new StringBuilder();
+                    var language = trimmedLine.Length > 3 ? trimmedLine.Substring(3).Trim() : "";
+                    
+                    i++; // Skip the opening ```
+                    
+                    while (i < lines.Length && !lines[i].Trim().StartsWith("```"))
+                    {
+                        codeContent.AppendLine(lines[i]);
+                        i++;
+                    }
+                    
+                    blockStack.Peek().Children.Add(CreateCodeBlock(codeContent.ToString(), language));
+                    break;
+                                    }
+                                    // Bullet lists    
+                                    case bool when trimmedLine.StartsWith("- ") || trimmedLine.StartsWith("* "):
+                                    {
+                    var bulletBlock = CreateBulletedListBlock(trimmedLine.Substring(2));
+                    blockStack.Peek().Children.Add(bulletBlock);
+                    if (i + 1 < lines.Length && GetIndentationLevel(lines[i + 1]) > indentLevel)
+                    {
+                        blockStack.Push((indentLevel + 1, ((dynamic)bulletBlock).bulleted_list_item.children = new List<object>()));
+                    }
+                    break;
+                                    }
+                                    // Numbered lists
+                                    case bool when Regex.IsMatch(trimmedLine, @"^\d+\.\s"):
+                                    {
+                    var match = Regex.Match(trimmedLine, @"^\d+\.\s(.+)$");
+                    if (match.Success)
+                    {
+                        var numberBlock = CreateNumberedListBlock(match.Groups[1].Value);
+                        blockStack.Peek().Children.Add(numberBlock);
+                        if (i + 1 < lines.Length && GetIndentationLevel(lines[i + 1]) > indentLevel)
+                        {
+                            blockStack.Push((indentLevel + 1, ((dynamic)numberBlock).numbered_list_item.children = new List<object>()));
+                        }
+                    }
+                    break;
+                                    }
+                                    // Regular paragraph
+                                    default:
+                                    {
+                    blockStack.Peek().Children.Add(CreateParagraphBlock(trimmedLine));
+                    break;
+                }
             }
         }
         
