@@ -83,7 +83,7 @@ To use NotionBae as an MCP server in VS Code, add the following configuration to
       "args": [
         "run",
         "--project",
-        "PATH_TO_NOTIONBAE_PROJECT/NotionBae.csproj"
+        "PATH_TO_NOTIONBAE_PROJECT\\src\\NotionBae.csproj"
       ],
       "env": {
         "NotionApiKey": "${input:notion_api_key}"
@@ -101,7 +101,7 @@ For example, if your NotionBae project is located at `C:\Projects\NotionBae\`, t
 "args": [
   "run",
   "--project",
-  "C:\\Projects\\NotionBae\\NotionBae.csproj"
+  "C:\\Projects\\NotionBae\\src\\NotionBae.csproj"
 ]
 ```
 
