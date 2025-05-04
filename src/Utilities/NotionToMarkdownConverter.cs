@@ -19,7 +19,10 @@ public class NotionToMarkdownConverter
 
         foreach (var block in blocks.EnumerateArray())
         {
-            string blockType = block.GetProperty("type").GetString();
+            var blockType = block.GetProperty("type").GetString();
+            
+            // we need to create a comment that will display only for the Agent the id of the block
+            markdown.AppendLine($"[//]: # (BlockId: {block.GetProperty("id").GetString()})");
             
             switch (blockType)
             {
