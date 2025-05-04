@@ -6,6 +6,21 @@ using System.Text.Json.Serialization;
 
 namespace NotionBae.Utilities;
 
+
+public abstract class ContentWithChildren
+{
+    [JsonIgnore]
+    public List<object>? Children { get; set; } = new();
+
+    [JsonPropertyName("children")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<object>? SerializationChildren
+    {
+        get => Children?.Count > 0 ? Children : null;
+        set => Children = value ?? new();
+    }
+}
+
 /// <summary>
 /// Base class for all Notion blocks
 /// </summary>
@@ -183,20 +198,6 @@ public class NumberedListContent : ContentWithChildren
 {
     [JsonPropertyName("rich_text")]
     public object[] RichText { get; set; }
-}
-
-public abstract class ContentWithChildren
-{
-    [JsonIgnore]
-    public List<object>? Children { get; set; } = new();
-
-    [JsonPropertyName("children")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<object>? SerializationChildren
-    {
-        get => Children?.Count > 0 ? Children : null;
-        set => Children = value ?? new();
-    }
 }
 
 /// <summary>
