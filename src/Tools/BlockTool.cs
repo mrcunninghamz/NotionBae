@@ -23,6 +23,7 @@ public class BlockTool
     [McpServerTool(Name = "nb_update_block"), Description("Updates a Notion block with markdown content.")]
     public async Task<string> UpdateBlock(
         string blockId,
+        [Description("This content should be a single line of markdown.")]
         string content)
     {
         _logger.LogInformation("Updating Notion block with ID: {BlockId}", blockId);
@@ -71,17 +72,7 @@ public class BlockTool
 
         try
         {
-            foreach(var id in blockIds){
-                var response = await _notionService.DeleteBlock(id);
-
-                if (response.IsSuccessStatusCode) continue;
-                var errorContent = await response.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-
-                _logger.LogError("Error deleting Notion block: {StatusCode} with message: {Message}",
-                    response.StatusCode, detailedError);
-                return $"Error deleting Notion block: {response.StatusCode}\nDetails: {detailedError}";
-            }
+            await _notionService.DeleteBlocks(blockIds);
 
             _logger.LogInformation("Successfully deleted block with ID: {BlockId}", blockIds);
             return $"Block deleted successfully!\nID: {blockIds}";
@@ -93,43 +84,5 @@ public class BlockTool
         }
     }
     
-    [McpServerTool(Name = "nb_append_block_content"),
-    Description("Appends a new block to an existing Notion page using markdown format. " +
-                "If given a specific block id, you can append the new block after the specified block.")]
-    public async Task<string> AppendBlockContent(
-        string blockId, 
-        string content, 
-        [Description("The parent blockId of a specific block to append after.")]
-        string parentBlockId = "")
-    {
-        _logger.LogInformation("Appending content to Notion block with ID: {BlockId}", blockId);
-        Guard.Argument(blockId, nameof(blockId))
-            .NotNull()
-            .NotEmpty();
-        Guard.Argument(content, nameof(content))
-            .NotNull();
     
-        try
-        {
-            var response = await _notionService.AppendBlockChildren(blockId, content, parentBlockId);
-    
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-    
-                _logger.LogError("Error appending Notion block content: {StatusCode} with message: {Message}",
-                    response.StatusCode, detailedError);
-                return $"Error appending Notion block content: {response.StatusCode}\nDetails: {detailedError}";
-            }
-    
-            _logger.LogInformation("Successfully appended content to block ID: {BlockId}", blockId);
-            return $"Block content appended successfully!\nID: {blockId}";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Exception occurred while appending Notion block content: {Message}", ex.Message);
-            return $"Exception occurred while appending Notion block content: {ex.Message}";
-        }
-    }
 }

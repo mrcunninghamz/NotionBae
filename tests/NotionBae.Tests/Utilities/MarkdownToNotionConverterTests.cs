@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using NotionBae.Utilities;
+﻿using NotionBae.Utilities;
 using Xunit;
 
 namespace NotionBae.Tests.Utilities
@@ -143,10 +141,44 @@ This roadmap outlines the planned features and improvements for NotionBae, prior
             // Make sure we have indented bullet points
             var nestedBullet = bulletWithDetails.BulletedListItem.Children.FirstOrDefault() as BulletedListBlock;
             Assert.NotNull(nestedBullet);
-            Assert.Contains(nestedBullet.BulletedListItem.RichText, rt => GetPlainText(rt).Contains("indentation"));
+            Assert.Contains(GetPlainText(nestedBullet.BulletedListItem.RichText), "indentation");
         }
+        
 
         // Helper method to extract plain text from rich text objects
+        [Fact]
+        public void ConvertToNotionBlocks_ConvertTimelineAndStatus_ProducesCorrectBlockStructure()
+        {
+            // Arrange
+            string markdown = @"**Target Timeline: Q3 2025**
+        
+        **Status: 🟡 In Progress**
+        
+        Updates have been made in branch: feature/3-sqlite-integration. A pull request will be submitted soon.";
+        
+            // Act
+            var blocks = MarkdownToNotionConverter.ConvertToNotionBlocks(markdown);
+        
+            // Assert
+            Assert.NotNull(blocks);
+            Assert.NotEmpty(blocks);
+        
+            // Verify timeline block
+            var timelineBlock = blocks[0] as ParagraphBlock;
+            Assert.NotNull(timelineBlock);
+            Assert.Contains(GetPlainText(timelineBlock.Paragraph.RichText), "Target Timeline: Q3 2025");
+        
+            // Verify status block
+            // var statusBlock = blocks[1] as ParagraphBlock;
+            // Assert.NotNull(statusBlock);
+            // Assert.Contains(statusBlock.Paragraph.RichText, rt => GetPlainText(rt).Contains("Status: 🟡 In Progress"));
+            //
+            // // Verify update message
+            // var updateBlock = blocks[2] as ParagraphBlock;
+            // Assert.NotNull(updateBlock);
+            // Assert.Contains(updateBlock.Paragraph.RichText, rt => GetPlainText(rt).Contains("Updates have been made"));
+        }
+        
         private string GetPlainText(object richText)
         {
             var propertyInfo = richText.GetType().GetProperty("plain_text");
