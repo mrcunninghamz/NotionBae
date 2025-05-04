@@ -2,9 +2,9 @@
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotionBae", "NotionBae.csproj", "{566DAA45-220A-465A-BDA1-0252C4EEC536}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotionBae", "src\NotionBae.csproj", "{566DAA45-220A-465A-BDA1-0252C4EEC536}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotionBae.Tests", "NotionBae.Tests\NotionBae.Tests.csproj", "{B2C3EEDE-3ACE-4A94-BF70-0AE4985F1F73}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotionBae.Tests", "tests\NotionBae.Tests\NotionBae.Tests.csproj", "{B2C3EEDE-3ACE-4A94-BF70-0AE4985F1F73}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
