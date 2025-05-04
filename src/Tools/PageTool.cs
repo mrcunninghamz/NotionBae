@@ -80,7 +80,10 @@ public class PageTool
 
     [McpServerTool(Name = "nb_get_page_content"),
      Description("Retrieves a Notion page with its metadata and full content in markdown format.")]
-    public async Task<string> GetPageContent(string pageId)
+    public async Task<string> GetPageContent(
+        string pageId, 
+        [Description("Toggle this boolean for extra information when the markdown wasn't detailed enough.")]
+        bool showRaw = false)
     {
         _logger.LogInformation("Retrieving Notion page content with ID: {PageId}", pageId);
 
@@ -100,6 +103,12 @@ public class PageTool
             }
 
             var pageResponseContent = await pageResponse.Content.ReadAsStringAsync();
+
+            if (showRaw)
+            {
+                return pageResponseContent;
+            }
+            
             var pageResult = JsonDocument.Parse(pageResponseContent);
 
             var privateUrl = "";
@@ -147,24 +156,24 @@ public class PageTool
             var contentResponseContent = await contentResponse.Content.ReadAsStringAsync();
             var blockResult = JsonDocument.Parse(contentResponseContent);
             
-            string markdown = "No content found";
+            string markdownPageContent = "No content found";
             if (blockResult.RootElement.TryGetProperty("results", out var results))
             {
-                markdown = NotionToMarkdownConverter.ConvertToMarkdown(results);
+                markdownPageContent = NotionToMarkdownConverter.ConvertToMarkdown(results);
             }
 
             // Combine metadata and content into a single response
-            var response = $"""
+            var markdownResponse = $"""
                             ---
                             - pageid: {pageId}
                             - privateUrl: {privateUrl}
                             - publicUrl: {publicUrl}
                             ---
-                            {markdown}
+                            {markdownPageContent}
                             """;
 
             _logger.LogInformation("Successfully retrieved page content for ID: {PageId}", pageId);
-            return response;
+            return markdownResponse;
         }
         catch (Exception ex)
         {
@@ -226,9 +235,7 @@ public class PageTool
     }
 
     [McpServerTool(Name = "nb_update_page_content"),
-    Description("Deletes all the content in the page and creates new content using markdown format. " +
-                "Do this if you want to replace the entire page content with new content. " +
-                "If you want to append new content to the page, use the 'nb_append_block_content' tool instead.")]
+    Description("Updates the notion page content.")]
     public async Task<string> UpdatePageContent(string pageId, string content)
     {
         _logger.LogInformation("Updating content for Notion page with ID: {PageId}", pageId);
@@ -246,17 +253,20 @@ public class PageTool
             {
                 var blockContent = await blockChildrenResponse.Content.ReadAsStringAsync();
                 var blockResult = JsonDocument.Parse(blockContent);
-        
+                
+                var blockIds = new List<string>();
                 if (blockResult.RootElement.TryGetProperty("results", out var results))
                 {
                     foreach (var block in results.EnumerateArray())
                     {
                         if (block.TryGetProperty("id", out var blockId))
                         {
-                            await _notionService.DeleteBlock(blockId.GetString()!);
+                            blockIds.Add(blockId.GetString()!);
                         }
                     }
                 }
+
+                await _notionService.DeleteBlocks(blockIds);
             }
         
             var response = await _notionService.AppendBlockChildren(pageId, content);

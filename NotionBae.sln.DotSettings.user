@@ -1,4 +1,11 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AJsonSerializerDefaults_002Ecs_002Fl_003AC_0021_003FUsers_003Fkmere_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FDecompilerCache_003Fdecompiler_003F8ff9bcd5d99e4c42921ea9e9ef7985f91b6930_003F68_003Fc5ecaf60_003FJsonSerializerDefaults_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
+	<s:String x:Key="/Default/CodeInspection/ExcludedFiles/FilesAndFoldersToSkip2/=7020124F_002D9FFC_002D4AC3_002D8F3D_002DAAB8E0240759_002Ff_003AJsonSerializerOptions_002Ecs_002Fl_003AC_0021_003FUsers_003Fkmere_003FAppData_003FRoaming_003FJetBrains_003FRider2025_002E1_003Fresharper_002Dhost_003FSourcesCache_003F5ef7f3c9db445621211faddebc3c1c9bb48a942f1b8cba4caa2501466f85f_003FJsonSerializerOptions_002Ecs/@EntryIndexedValue">ForceIncluded</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=a12ef261_002D0f58_002D4260_002D8326_002Db20a771b80bf/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="ConvertToNotionBlocks_WithComplexMarkdown_ReturnsCorrectNotionBlocks" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
-  &lt;ProjectFile&gt;B2C3EEDE-3ACE-4A94-BF70-0AE4985F1F73/d:Utilities/f:MarkdownToNotionConverterTests.cs&lt;/ProjectFile&gt;&#xD;
+  &lt;Or&gt;&#xD;
+    &lt;ProjectFile&gt;B2C3EEDE-3ACE-4A94-BF70-0AE4985F1F73/d:Utilities/f:MarkdownToNotionConverterTests.cs&lt;/ProjectFile&gt;&#xD;
+    &lt;TestAncestor&gt;&#xD;
+      &lt;TestId&gt;xUnit::B2C3EEDE-3ACE-4A94-BF70-0AE4985F1F73::net9.0::NotionBae.Tests.Services.NotionServiceTests.UpdateBlock_WithMarkdownContent_SendsProperRequest&lt;/TestId&gt;&#xD;
+    &lt;/TestAncestor&gt;&#xD;
+  &lt;/Or&gt;&#xD;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

@@ -98,8 +98,7 @@ public class ParagraphBlock : NotionBlock
         Type = "paragraph";
         Paragraph = new ParagraphContent
         {
-            RichText = richText,
-            Children = new List<object>()
+            RichText = richText
         };
     }
 }
@@ -108,9 +107,6 @@ public class ParagraphContent
 {
     [JsonPropertyName("rich_text")]
     public object[] RichText { get; set; }
-    
-    [JsonPropertyName("children")]
-    public List<object> Children { get; set; }
 }
 
 /// <summary>
@@ -154,19 +150,15 @@ public class BulletedListBlock : NotionBlock
         Type = "bulleted_list_item";
         BulletedListItem = new BulletedListContent
         {
-            RichText = richText,
-            Children = new List<object>()
+            RichText = richText
         };
     }
 }
 
-public class BulletedListContent
+public class BulletedListContent : ContentWithChildren
 {
     [JsonPropertyName("rich_text")]
     public object[] RichText { get; set; }
-    
-    [JsonPropertyName("children")]
-    public List<object> Children { get; set; }
 }
 
 /// <summary>
@@ -182,19 +174,29 @@ public class NumberedListBlock : NotionBlock
         Type = "numbered_list_item";
         NumberedListItem = new NumberedListContent
         {
-            RichText = richText,
-            Children = new List<object>()
+            RichText = richText
         };
     }
 }
 
-public class NumberedListContent
+public class NumberedListContent : ContentWithChildren
 {
     [JsonPropertyName("rich_text")]
     public object[] RichText { get; set; }
-    
+}
+
+public abstract class ContentWithChildren
+{
+    [JsonIgnore]
+    public List<object>? Children { get; set; } = new();
+
     [JsonPropertyName("children")]
-    public List<object> Children { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<object>? SerializationChildren
+    {
+        get => Children?.Count > 0 ? Children : null;
+        set => Children = value ?? new();
+    }
 }
 
 /// <summary>

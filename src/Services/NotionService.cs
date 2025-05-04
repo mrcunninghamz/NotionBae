@@ -14,6 +14,7 @@ public interface INotionService
     Task<HttpResponseMessage> UpdatePage(string pageId, string title);
     Task<HttpResponseMessage> UpdateBlock(string blockId, string content);
     Task<HttpResponseMessage> DeleteBlock(string blockId);
+    Task DeleteBlocks(List<string> blockIds);
     Task<HttpResponseMessage> AppendBlockChildren(string blockId, string content, string? after = null);
 }
 
@@ -110,12 +111,8 @@ public class NotionService : INotionService
     {
         var blocks = !string.IsNullOrEmpty(content) ? CreateContentBlocks(content) : null;
         
-        var payload = new
-        {
-            children = blocks ?? new List<object>()
-        };
         
-        return await SendPatchRequestAsync($"blocks/{blockId}", payload);
+        return await SendPatchRequestAsync($"blocks/{blockId}", blocks.FirstOrDefault());
     }
 
     public async Task<HttpResponseMessage> DeleteBlock(string blockId)
@@ -129,6 +126,26 @@ public class NotionService : INotionService
         };
         
         return await _httpclient.SendAsync(request);
+    }
+
+    public async Task DeleteBlocks(List<string> blockIds)
+    {
+        var tasks = new List<Task>();
+        foreach (var blockId in blockIds)
+        {
+            tasks.Add(Task.Run(async () => await DeleteBlock(blockId)));
+        }
+
+        try
+        {
+            await Task.WhenAll(tasks);
+            _logger.LogInformation("Successfully deleted existing blocks");
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Exception occurred while deleting existing blocks");
+            throw;
+        }
     }
     
     public async Task<HttpResponseMessage> AppendBlockChildren(string blockId, string content, string? after = null)
@@ -177,7 +194,12 @@ public class NotionService : INotionService
     
     private async Task<HttpResponseMessage> SendPatchRequestAsync<T>(string endpoint, T payload)
     {
-        var payloadJson = JsonSerializer.Serialize(payload);
+        var options = new JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+        
+        var payloadJson = JsonSerializer.Serialize(payload, options);
         
         _logger.LogInformation("Sending PATCH {Endpoint} request with payload: {Payload}", endpoint, payloadJson);
         
@@ -198,7 +220,12 @@ public class NotionService : INotionService
     
     private async Task<HttpResponseMessage> SendPostRequestAsync<T>(string endpoint, T payload)
     {
-        var payloadJson = JsonSerializer.Serialize(payload);
+        var options = new JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+        
+        var payloadJson = JsonSerializer.Serialize(payload, options);
         
         _logger.LogInformation("Sending {Endpoint} request with payload: {Payload}", endpoint, payloadJson);
         
