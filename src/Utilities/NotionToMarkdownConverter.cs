@@ -115,12 +115,6 @@ public class NotionToMarkdownConverter
 
     private static string GetTabs(int level)
     {
-        var tabs = string.Empty;
-        for (var i = 0; i < level; i++)
-        {
-            tabs += "\t";
-        }
-
-        return tabs;
+        return new string('\t', level);
     }
 }
