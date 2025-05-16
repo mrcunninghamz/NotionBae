@@ -9,62 +9,59 @@ namespace NotionBae.Utilities;
 public class NotionToMarkdownConverter
 {
     /// <summary>
-    /// Converts Notion blocks to markdown text
+    /// Converts Notion block to markdown text
     /// </summary>
-    /// <param name="blocks">List of Notion blocks to convert</param>
+    /// <param name="block">a notion block</param>
     /// <returns>A string containing the markdown representation</returns>
-    public static string ConvertToMarkdown(JsonElement blocks)
+    public static string ConvertToMarkdown(JsonElement block, int level = 0)
     {
         var markdown = new StringBuilder();
+        var blockType = block.GetProperty("type").GetString();
 
-        foreach (var block in blocks.EnumerateArray())
+        var tabs = GetTabs(level);
+        
+        // we need to create a comment that will display only for the Agent the id of the block
+        markdown.AppendLine($"{tabs}[//]: # (BlockId: {block.GetProperty("id").GetString()})");
+        switch (blockType)
         {
-            var blockType = block.GetProperty("type").GetString();
-            
-            // we need to create a comment that will display only for the Agent the id of the block
-            markdown.AppendLine($"[//]: # (BlockId: {block.GetProperty("id").GetString()})");
-            
-            switch (blockType)
-            {
-                case "heading_1":
-                    markdown.AppendLine($"# {ConvertRichTextToMarkdown(block.GetProperty("heading_1").GetProperty("rich_text"))}");
-                    break;
-                    
-                case "heading_2":
-                    markdown.AppendLine($"## {ConvertRichTextToMarkdown(block.GetProperty("heading_2").GetProperty("rich_text"))}");
-                    break;
-                    
-                case "heading_3":
-                    markdown.AppendLine($"### {ConvertRichTextToMarkdown(block.GetProperty("heading_3").GetProperty("rich_text"))}");
-                    break;
-                    
-                case "paragraph":
-                    var paragraphText = ConvertRichTextToMarkdown(block.GetProperty("paragraph").GetProperty("rich_text"));
-                    if (!string.IsNullOrEmpty(paragraphText))
-                    {
-                        markdown.AppendLine(paragraphText);
-                    }
-                    break;
-                    
-                case "code":
-                    var codeBlock = block.GetProperty("code");
-                    var language = codeBlock.TryGetProperty("language", out var langElement) ? langElement.GetString() : "";
-                    markdown.AppendLine($"```{language}");
-                    markdown.AppendLine(ConvertRichTextToMarkdown(codeBlock.GetProperty("rich_text")));
-                    markdown.AppendLine("```");
-                    break;
-                    
-                case "bulleted_list_item":
-                    markdown.AppendLine($"- {ConvertRichTextToMarkdown(block.GetProperty("bulleted_list_item").GetProperty("rich_text"))}");
-                    break;
-                    
-                case "numbered_list_item":
-                    markdown.AppendLine($"1. {ConvertRichTextToMarkdown(block.GetProperty("numbered_list_item").GetProperty("rich_text"))}");
-                    break;
-            }
-            
-            markdown.AppendLine(); // Add empty line between blocks for better readability
+            case "heading_1":
+                markdown.AppendLine($"# {ConvertRichTextToMarkdown(block.GetProperty("heading_1").GetProperty("rich_text"))}");
+                break;
+                
+            case "heading_2":
+                markdown.AppendLine($"## {ConvertRichTextToMarkdown(block.GetProperty("heading_2").GetProperty("rich_text"))}");
+                break;
+                
+            case "heading_3":
+                markdown.AppendLine($"### {ConvertRichTextToMarkdown(block.GetProperty("heading_3").GetProperty("rich_text"))}");
+                break;
+                
+            case "paragraph":
+                var paragraphText = ConvertRichTextToMarkdown(block.GetProperty("paragraph").GetProperty("rich_text"));
+                if (!string.IsNullOrEmpty(paragraphText))
+                {
+                    markdown.AppendLine(tabs + paragraphText);
+                }
+                break;
+                
+            case "code":
+                var codeBlock = block.GetProperty("code");
+                var language = codeBlock.TryGetProperty("language", out var langElement) ? langElement.GetString() : "";
+                markdown.AppendLine($"{tabs}```{language}");
+                markdown.AppendLine(tabs + ConvertRichTextToMarkdown(codeBlock.GetProperty("rich_text"), level));
+                markdown.AppendLine($"{tabs}```");
+                break;
+                
+            case "bulleted_list_item":
+                markdown.AppendLine($"{tabs}- {ConvertRichTextToMarkdown(block.GetProperty("bulleted_list_item").GetProperty("rich_text"))}");
+                break;
+                
+            case "numbered_list_item":
+                markdown.AppendLine($"{tabs}1. {ConvertRichTextToMarkdown(block.GetProperty("numbered_list_item").GetProperty("rich_text"))}");
+                break;
         }
+        
+        markdown.AppendLine(); // Add empty line between blocks for better readability
 
         return markdown.ToString().TrimEnd();
     }
@@ -72,14 +69,18 @@ public class NotionToMarkdownConverter
     /// <summary>
     /// Converts Notion rich text array to markdown formatted text
     /// </summary>
-    private static string ConvertRichTextToMarkdown(JsonElement richTextArray)
+    private static string ConvertRichTextToMarkdown(JsonElement richTextArray, int level = 0)
     {
         var markdown = new StringBuilder();
 
         foreach (var textBlock in richTextArray.EnumerateArray())
         {
-            string content = textBlock.GetProperty("plain_text").GetString();
+            var tabs = GetTabs(level);
+            var content = textBlock.GetProperty("plain_text").GetString();
             var annotations = textBlock.GetProperty("annotations");
+            
+            // Apply tabs
+            content = content.Replace("\n", $"\n{tabs}");
 
             // Apply formatting based on annotations
             if (annotations.GetProperty("code").GetBoolean())
@@ -110,5 +111,10 @@ public class NotionToMarkdownConverter
         }
 
         return markdown.ToString();
+    }
+
+    private static string GetTabs(int level)
+    {
+        return new string('\t', level);
     }
 }
