@@ -103,11 +103,6 @@ public class PageTool
             }
 
             var pageResponseContent = await pageResponse.Content.ReadAsStringAsync();
-
-            if (showRaw)
-            {
-                return pageResponseContent;
-            }
             
             var pageResult = JsonDocument.Parse(pageResponseContent);
 
@@ -154,6 +149,12 @@ public class PageTool
             }
 
             var contentResponseContent = await contentResponse.Content.ReadAsStringAsync();
+
+            if (showRaw)
+            {
+                return contentResponseContent;
+            }
+            
             var blockResult = JsonDocument.Parse(contentResponseContent);
             
             string markdownPageContent = "No content found";
