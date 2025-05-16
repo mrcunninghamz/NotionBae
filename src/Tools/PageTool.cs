@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text;
 using System.Text.Json;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -81,9 +82,7 @@ public class PageTool
     [McpServerTool(Name = "nb_get_page_content"),
      Description("Retrieves a Notion page with its metadata and full content in markdown format.")]
     public async Task<string> GetPageContent(
-        string pageId, 
-        [Description("Toggle this boolean for extra information when the markdown wasn't detailed enough.")]
-        bool showRaw = false)
+        string pageId)
     {
         _logger.LogInformation("Retrieving Notion page content with ID: {PageId}", pageId);
 
@@ -136,32 +135,8 @@ public class PageTool
             }
 
             // Get page content
-            var contentResponse = await _notionService.RetrieveBlockChildren(pageId);
-
-            if (!contentResponse.IsSuccessStatusCode)
-            {
-                var errorContent = await contentResponse.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-
-                _logger.LogError("Error retrieving Notion page content: {StatusCode} with message: {Message}",
-                    contentResponse.StatusCode, detailedError);
-                return $"Error retrieving Notion page content: {contentResponse.StatusCode}\nDetails: {detailedError}";
-            }
-
-            var contentResponseContent = await contentResponse.Content.ReadAsStringAsync();
-
-            if (showRaw)
-            {
-                return contentResponseContent;
-            }
-            
-            var blockResult = JsonDocument.Parse(contentResponseContent);
-            
-            string markdownPageContent = "No content found";
-            if (blockResult.RootElement.TryGetProperty("results", out var results))
-            {
-                markdownPageContent = NotionToMarkdownConverter.ConvertToMarkdown(results);
-            }
+            var markdownPageContent = new StringBuilder();
+            await GetPageMDContent(pageId, markdownPageContent);
 
             // Combine metadata and content into a single response
             var markdownResponse = $"""
@@ -289,6 +264,48 @@ public class PageTool
         {
             _logger.LogError(ex, "Exception occurred while updating Notion page content: {Message}", ex.Message);
             return $"Exception occurred while updating Notion page content: {ex.Message}";
+        }
+    }
+
+    private async Task GetPageMDContent(string blockId, StringBuilder markdownPageContent, int level = 0)
+    {
+        var contentResponse = await _notionService.RetrieveBlockChildren(blockId);
+
+        if (!contentResponse.IsSuccessStatusCode)
+        {
+            var errorContent = await contentResponse.Content.ReadAsStringAsync();
+            var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
+
+            _logger.LogError("Error retrieving Notion page content: {StatusCode} with message: {Message}",
+                contentResponse.StatusCode, detailedError);
+            throw new Exception($"Error retrieving Notion page content: {contentResponse.StatusCode}\nDetails: {detailedError}");
+        }
+
+        var contentResponseContent = await contentResponse.Content.ReadAsStringAsync();
+            
+        var blockResult = JsonDocument.Parse(contentResponseContent);
+            
+        if (blockResult.RootElement.TryGetProperty("results", out var results))
+        {
+            foreach (var block in results.EnumerateArray())
+            {
+                var markdown = NotionToMarkdownConverter.ConvertToMarkdown(block, level);
+                markdownPageContent.AppendLine(markdown);
+                
+                var hasChildren = false;
+                if (block.TryGetProperty("has_children", out var hasChildrenProp))
+                {
+                    hasChildren = hasChildrenProp.GetBoolean();
+                }
+
+                if (!hasChildren)
+                {
+                    continue;
+                }
+
+                var parentBlockId = block.GetProperty("id").GetString()!;
+                await GetPageMDContent(parentBlockId, markdownPageContent, level + 1);
+            }
         }
     }
 }
