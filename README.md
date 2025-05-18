@@ -13,6 +13,23 @@ NotionBae provides a bridge between Large Language Models and Notion.com through
 - Structured data handling for Notion content
 - Authentication and secure access to Notion workspaces
 
+## Technologies
+
+- **[Notion SDK for .NET](https://github.com/notion-dotnet/notion-sdk-net)**: A comprehensive .NET client for the Notion API that simplifies integration and provides strongly-typed access to Notion's resources
+- **[Markdig](https://github.com/xoofx/markdig)**: A fast, powerful, and extensible Markdown processor for .NET used for converting between Notion's block structure and Markdown
+
+### Why Markdown?
+
+NotionBae uses Markdown as an intermediary format between Notion's complex block structure and AI agents for several reasons:
+
+1. **Token Efficiency**: Notion's API returns data in a verbose block structure with many properties. By converting to Markdown, we significantly reduce the number of tokens processed by AI models, potentially improving performance and reducing costs.
+
+2. **Readability**: Markdown is inherently human-readable, making the content more accessible for both humans and AI agents.
+
+3. **Simplicity**: Working with Markdown is much simpler than handling Notion's nested block structure directly, especially when generating content.
+
+While there's no comprehensive data comparing token usage between raw Notion API responses and Markdown, anecdotal evidence suggests notable efficiency gains when using Markdown as an intermediary format.
+
 ## Available Tools
 
 NotionBae provides the following tools for interacting with Notion:
