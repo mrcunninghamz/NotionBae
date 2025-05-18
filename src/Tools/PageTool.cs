@@ -216,16 +216,6 @@ public class PageTool
         
             var response = await _notionService.AppendBlockChildren(pageId, content);
     
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-    
-                _logger.LogError("Error updating Notion page content: {StatusCode} with message: {Message}",
-                    response.StatusCode, detailedError);
-                return $"Error updating Notion page content: {response.StatusCode}\nDetails: {detailedError}";
-            }
-    
             _logger.LogInformation("Successfully updated content for page ID: {PageId}", pageId);
             return $"Page content updated successfully!\nID: {pageId}";
         }
