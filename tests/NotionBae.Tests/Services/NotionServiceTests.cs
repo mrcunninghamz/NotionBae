@@ -6,31 +6,63 @@ using Moq;
 using Moq.Protected;
 using NotionBae.Services;
 using NotionBae.Utilities;
+using TestBae.BaseClasses.AutoFixture;
 using Xunit;
+using AutoFixture;
 
 namespace NotionBae.Tests.Services;
 
-public class NotionServiceTests
+public class NotionServiceTests : BaseTest<NotionService>
 {
-    private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
-    private readonly HttpClient _httpClient;
-    private readonly Mock<ILogger<NotionService>> _mockLogger;
-    private readonly Mock<IConfiguration> _mockConfiguration;
-    private readonly NotionService _notionService;
-
-    public NotionServiceTests()
+    private Mock<HttpMessageHandler> _mockHttpMessageHandler;
+    private HttpClient _httpClient;
+    
+    protected override void ConfigureFixture()
     {
-        _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        _mockHttpMessageHandler = Fixture.Freeze<Mock<HttpMessageHandler>>();
         _httpClient = new HttpClient(_mockHttpMessageHandler.Object)
         {
             BaseAddress = new Uri("https://api.notion.com/v1/")
         };
-        _mockLogger = new Mock<ILogger<NotionService>>();
-        _mockConfiguration = new Mock<IConfiguration>();
         
-        _mockConfiguration.Setup(c => c["NotionApiKey"]).Returns("fake-api-key");
+        // Register the HttpClient in the Fixture to be used when creating the NotionService
+        Fixture.Register(() => _httpClient);
+        // Configure IConfiguration to return a fake API key
+        Fixture.Freeze<Mock<IConfiguration>>()
+            .Setup(c => c["NotionApiKey"])
+            .Returns("fake-api-key");
+    }
+
+    [Fact]
+    public async Task CreatePage_WithValidPageContent_SendsProperRequest()
+    {
+        // Arrange 
+        var content = @"An h1 header
+============
+
+Paragraphs are separated by a blank line.
+
+2nd paragraph. *Italic*, **bold**, and `monospace`. Itemized lists
+look like:
+
+  * this one
+  * that one
+  * the other one
+
+Note that --- not considering the asterisk --- the actual text
+content starts at 4-columns in.
+
+> Block quotes are
+> written like so.
+>
+> They can span multiple paragraphs,
+> if you like.
+
+
+";
         
-        _notionService = new NotionService(_httpClient, _mockConfiguration.Object, _mockLogger.Object);
+        // Act
+        var result = await TestSubject.CreatePage("Test", "Test", content);
     }
 
     [Fact]
@@ -63,7 +95,7 @@ public class NotionServiceTests
             .ReturnsAsync(responseMessage);
 
         // Act
-        var result = await _notionService.UpdateBlock(blockId, markdownContent);
+        var result = await TestSubject.UpdateBlock(blockId, markdownContent);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, result.StatusCode);
