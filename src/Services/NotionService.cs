@@ -85,7 +85,7 @@ public class NotionService : INotionService
             })
             .AddProperty("title", new TitlePropertyValue
             {
-                Title = new List<RichTextBase> {new RichTextText {Text = new Text {Content = "Test"}}}
+                Title = new List<RichTextBase> {new RichTextText {Text = new Text {Content = title}}}
             });
         
         var page = pagesCreateParameters.Build();
