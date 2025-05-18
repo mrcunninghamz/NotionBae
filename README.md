@@ -13,6 +13,23 @@ NotionBae provides a bridge between Large Language Models and Notion.com through
 - Structured data handling for Notion content
 - Authentication and secure access to Notion workspaces
 
+## Technologies
+
+- **[Notion SDK for .NET](https://github.com/notion-dotnet/notion-sdk-net)**: A comprehensive .NET client for the Notion API that simplifies integration and provides strongly-typed access to Notion's resources
+- **[Markdig](https://github.com/xoofx/markdig)**: A fast, powerful, and extensible Markdown processor for .NET used for converting between Notion's block structure and Markdown
+
+### Why Markdown?
+
+NotionBae uses Markdown as an intermediary format between Notion's complex block structure and AI agents for several reasons:
+
+1. **Token Efficiency**: Notion's API returns data in a verbose block structure with many properties. By converting to Markdown, we significantly reduce the number of tokens processed by AI models, potentially improving performance and reducing costs.
+
+2. **Readability**: Markdown is inherently human-readable, making the content more accessible for both humans and AI agents.
+
+3. **Simplicity**: Working with Markdown is much simpler than handling Notion's nested block structure directly, especially when generating content.
+
+While there's no comprehensive data comparing token usage between raw Notion API responses and Markdown, anecdotal evidence suggests notable efficiency gains when using Markdown as an intermediary format.
+
 ## Available Tools
 
 NotionBae provides the following tools for interacting with Notion:
@@ -170,5 +187,17 @@ This project is part of the "Bae" collection of tools:
 
 - [TestBae](https://github.com/mrcunninghamz/TestBae) - A .NET testing utility library that simplifies test setup with fixtures, mocks, and common testing patterns for more efficient and maintainable test suites.
 - [AzBae](https://github.com/mrcunninghamz/AzBae) - Azure DevOps tooling that provides both CLI and GUI interfaces to streamline Azure resource management, deployments, and DevOps workflows.
+
+## Roadmap
+
+The following items represent the current development priorities for NotionBae:
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Support for More Block Types | In Progress | Links, tables, and nested items have been completed. Work continues on additional block types to ensure comprehensive Notion content support. |
+| Fix Markdown to Notion Conversion for Indentation | In Progress | A PR is coming that utilizes Markdig and the Notion SDK for more reliable conversion, eliminating complex regex-based solutions. AutoMapper is being used for mapping between Markdig and Notion objects in page creation and update methods. |
+| Enhanced Error Handling | Planned | Improved error reporting and recovery mechanisms for API interactions |
+| Batch Operations | Planned | Support for efficient batch processing of Notion operations |
+| Database Query Support | Planned | Extended capabilities for querying and filtering Notion databases |
 
 ## License
