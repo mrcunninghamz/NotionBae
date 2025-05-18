@@ -188,4 +188,16 @@ This project is part of the "Bae" collection of tools:
 - [TestBae](https://github.com/mrcunninghamz/TestBae) - A .NET testing utility library that simplifies test setup with fixtures, mocks, and common testing patterns for more efficient and maintainable test suites.
 - [AzBae](https://github.com/mrcunninghamz/AzBae) - Azure DevOps tooling that provides both CLI and GUI interfaces to streamline Azure resource management, deployments, and DevOps workflows.
 
+## Roadmap
+
+The following items represent the current development priorities for NotionBae:
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| Support for More Block Types | In Progress | Links, tables, and nested items have been completed. Work continues on additional block types to ensure comprehensive Notion content support. |
+| Fix Markdown to Notion Conversion for Indentation | In Progress | A PR is coming that utilizes Markdig and the Notion SDK for more reliable conversion, eliminating complex regex-based solutions. AutoMapper is being used for mapping between Markdig and Notion objects in page creation and update methods. |
+| Enhanced Error Handling | Planned | Improved error reporting and recovery mechanisms for API interactions |
+| Batch Operations | Planned | Support for efficient batch processing of Notion operations |
+| Database Query Support | Planned | Extended capabilities for querying and filtering Notion databases |
+
 ## License
