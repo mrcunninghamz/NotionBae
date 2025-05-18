@@ -89,7 +89,7 @@ public class NotionBlockProfile : Profile
             {
                 Text = new Text
                 {
-                    Content = string.Empty
+                    Content = Environment.NewLine
                 },
                 Annotations = new Annotations
                 {
@@ -100,7 +100,7 @@ public class NotionBlockProfile : Profile
                     IsCode = false,
                     Color = Color.Default
                 },
-                PlainText = String.Empty
+                PlainText = Environment.NewLine
             });
         
         CreateMap<CodeInline, RichTextBase>()
