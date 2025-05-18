@@ -32,42 +32,11 @@ public class PageTool
 
         try
         {
-            var response = await _notionService.CreatePage(parentId, title, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-
-                _logger.LogError("Error creating Notion page: {StatusCode} with message: {Message}",
-                    response.StatusCode, detailedError);
-                return $"Error creating Notion page: {response.StatusCode}\nDetails: {detailedError}";
-            }
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var pageResult = JsonDocument.Parse(responseContent);
-
-            var pageId = "";
-            var privateUrl = "";
-            var publicUrl = "";
-
-            // Extract page ID
-            if (pageResult.RootElement.TryGetProperty("id", out var idProp))
-            {
-                pageId = idProp.GetString() ?? "";
-            }
-
-            // Extract private URL
-            if (pageResult.RootElement.TryGetProperty("url", out var urlProp))
-            {
-                privateUrl = urlProp.GetString() ?? "";
-            }
-
-            // Extract public URL
-            if (pageResult.RootElement.TryGetProperty("public_url", out var publicUrlProp))
-            {
-                publicUrl = publicUrlProp.GetString() ?? "Not publicly shared";
-            }
+            var page = await _notionService.CreatePage(parentId, title, content);
+            
+            var pageId = page.Id;
+            var privateUrl = page.Url;
+            var publicUrl = page.PublicUrl ?? "Not publicly shared";
 
             _logger.LogInformation("Page created successfully with ID: {PageId}", pageId);
             return $"Page created successfully!\nID: {pageId}\nPrivate URL: {privateUrl}\nPublic URL: {publicUrl}";

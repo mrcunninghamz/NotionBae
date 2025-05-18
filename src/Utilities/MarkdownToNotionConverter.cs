@@ -5,8 +5,6 @@ using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace NotionBae.Utilities;
-
-
 public abstract class ContentWithChildren
 {
     [JsonIgnore]
