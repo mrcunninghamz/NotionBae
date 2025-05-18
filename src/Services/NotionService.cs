@@ -5,6 +5,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Notion.Client;
 using NotionBae.Utilities;
+using CodeBlock = Markdig.Syntax.CodeBlock;
+using ParagraphBlock = NotionBae.Utilities.ParagraphBlock;
 
 namespace NotionBae.Services;
 
@@ -18,7 +20,7 @@ public interface INotionService
     Task<HttpResponseMessage> UpdateBlock(string blockId, string content);
     Task<HttpResponseMessage> DeleteBlock(string blockId);
     Task DeleteBlocks(List<string> blockIds);
-    Task<HttpResponseMessage> AppendBlockChildren(string blockId, string content, string? after = null);
+    Task<AppendChildrenResponse> AppendBlockChildren(string blockId, string content, string? after = null);
 }
 
 public class NotionPageUpdateRequest
@@ -75,11 +77,7 @@ public class NotionService : INotionService
     
     public async Task<Page> CreatePage(string parentId, string title, string content)
     {
-        // var blocks = MarkdownToNotionConverter.ConvertToNotionBlocks(content);
-        var documents = Markdown.Parse(content);
-        
-        var blocks = _mapper.Map<List<IBlock>>(documents, opt => opt.Items["AllBlocks"] = new List<Block>());
-
+        var blocks = MarkdownToNotion(content);
         var pagesCreateParameters = PagesCreateParametersBuilder
             .Create(new ParentPageInput
             {
@@ -155,23 +153,42 @@ public class NotionService : INotionService
         }
     }
     
-    public async Task<HttpResponseMessage> AppendBlockChildren(string blockId, string content, string? after = null)
+    public async Task<AppendChildrenResponse> AppendBlockChildren(string blockId, string content, string? after = null)
     {
         _logger.LogInformation("Appending children to block with ID: {BlockId}", blockId);
+
+        var blocks = MarkdownToNotionAppend(content);
         
-        var blocks = !string.IsNullOrEmpty(content) ? MarkdownToNotionConverter.ConvertToNotionBlocks(content) : null;
-        var payload = new Dictionary<string, object>
+        var blockAppendChildrenRequest = new BlockAppendChildrenRequest
         {
-            ["children"] = blocks ?? new List<object>()
+            BlockId = blockId,
+            Children = blocks,
+            After = after
         };
-        
-        if (!string.IsNullOrEmpty(after))
-        {
-            payload["after"] = after;
-        }
-        
-        return await SendPatchRequestAsync($"blocks/{blockId}/children", payload);
+
+        return await _client.Blocks.AppendChildrenAsync(blockAppendChildrenRequest);
     }
+
+    private List<IBlock> MarkdownToNotion(string content)
+    {
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var documents = Markdown.Parse(content, pipeline);
+        
+        var blocks = _mapper.Map<List<IBlock>>(documents, opt => opt.Items["AllBlocks"] = new List<Block>());
+
+        return blocks;
+    }
+    
+    private List<IBlockObjectRequest> MarkdownToNotionAppend(string content)
+    {
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var documents = Markdown.Parse(content, pipeline);
+        
+        var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt => opt.Items["AllBlocks"] = new List<BlockObjectRequest>());
+
+        return blocks;
+    }
+
     
     private static TitleProperty? CreateTitleProperties(string title) =>
         !string.IsNullOrEmpty(title)

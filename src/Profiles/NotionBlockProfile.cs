@@ -1,28 +1,30 @@
-﻿using System.Collections.Generic;
-using AutoMapper;
+﻿using AutoMapper;
+using Markdig.Extensions.Footnotes;
+using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Notion.Client;
 using Block = Notion.Client.Block;
 using CodeBlock = Markdig.Syntax.CodeBlock;
+using IBlock = Notion.Client.IBlock;
 using ParagraphBlock = Markdig.Syntax.ParagraphBlock;
 using QuoteBlock = Markdig.Syntax.QuoteBlock;
 
 namespace NotionBae.Profiles;
 
-public class NotionBlockProfiles : Profile
+public class NotionBlockProfile : Profile
 {
-    public NotionBlockProfiles()
+    public NotionBlockProfile()
     {
         // Map from Markdig MarkdownDocument to a list of Notion Blocks
-        CreateMap<MarkdownDocument, List<Notion.Client.IBlock>>()
+        CreateMap<MarkdownDocument, List<IBlock>>()
             .ConvertUsing((doc, _, context) => 
             {
-                var blocks = new List<Notion.Client.IBlock>();
+                var blocks = new List<IBlock>();
                 context.Items["AllBlocks"] = blocks;
                 foreach (var block in doc)
                 {
-                    var mappedBlock = context.Mapper.Map<Notion.Client.Block>(block);
+                    var mappedBlock = context.Mapper.Map<Block>(block);
                     if (mappedBlock != null)
                     {
                         blocks.Add(mappedBlock);
@@ -31,7 +33,19 @@ public class NotionBlockProfiles : Profile
                 return blocks;
             });
         
-
+        CreateMap<LinkInline, RichTextBase>()
+            .ConvertUsing((src, _, _) => new RichTextText
+            {
+                Text = new Text
+                {
+                    Content = string.IsNullOrEmpty(src.Title) ? src.Url : src.Title,
+                    Link = new Link
+                    {
+                        Url = src.Url
+                    }
+                }
+            });
+        
         CreateMap<LiteralInline, RichTextBase>()
             .ConvertUsing((src, _, _) => new RichTextText
             {
@@ -109,7 +123,7 @@ public class NotionBlockProfiles : Profile
             });
             
         // Paragraph block mapping
-        CreateMap<ParagraphBlock, Notion.Client.Block>()
+        CreateMap<ParagraphBlock, Block>()
             .ConvertUsing((src, _, context) => 
             {
                 var richTexts = new List<RichTextBase>();
@@ -134,7 +148,7 @@ public class NotionBlockProfiles : Profile
             });
 
         // Heading block mappings
-        CreateMap<HeadingBlock, Notion.Client.Block>()
+        CreateMap<HeadingBlock, Block>()
             .ConvertUsing((src, _, context) => 
             {
                 var richTexts = new List<RichTextBase>();
@@ -161,7 +175,7 @@ public class NotionBlockProfiles : Profile
                             }
                         };
                     case 2:
-                        return new HeadingTwoBlock()
+                        return new HeadingTwoBlock
                         {
                             Heading_2 = new HeadingTwoBlock.Info
                             {
@@ -170,7 +184,7 @@ public class NotionBlockProfiles : Profile
                             }
                         };
                     case 3:
-                        return new HeadingThreeBlock()
+                        return new HeadingThreeBlock
                         {
                             Heading_3 = new HeadingThreeBlock.Info
                             {
@@ -180,7 +194,7 @@ public class NotionBlockProfiles : Profile
                         };
                     default:
                         // For heading levels not directly supported by Notion, fallback to paragraph
-                        return new HeadingThreeBlock()
+                        return new HeadingThreeBlock
                         {
                             Heading_3 = new HeadingThreeBlock.Info
                             {
@@ -191,11 +205,11 @@ public class NotionBlockProfiles : Profile
                 }
             });
 
-        CreateMap<ListBlock, Notion.Client.Block>()
+        CreateMap<ListBlock, Block>()
             .ConvertUsing(MappingListBlock);
         
         // Quote block mapping
-        CreateMap<QuoteBlock, Notion.Client.Block>()
+        CreateMap<QuoteBlock, Block>()
             .ConvertUsing((src, _, context) => 
             {
                 var richTexts = new List<RichTextBase>();
@@ -230,10 +244,8 @@ public class NotionBlockProfiles : Profile
             .ConvertUsing((src, _, context) => 
             {
                 var codeText = src.Lines.ToString();
-                var language = string.IsNullOrEmpty(src.) ? "plain text" : src.Info.ToLower();
-                
                 // Map language to a supported Notion code language or default to plain text
-                var notionLanguage = MapToNotionCodeLanguage(language);
+                var notionLanguage = MapToNotionCodeLanguage(string.Empty);
                 
                 return new Notion.Client.CodeBlock
                 {
@@ -253,150 +265,108 @@ public class NotionBlockProfiles : Profile
                     }
                 };
             });
-        //
-        //
-        // // ThematicBreak (horizontal rule) mapping
-        // CreateMap<ThematicBreakBlock, Block>()
-        //     .ConvertUsing((_, _, _) => new DividerBlock
-        //     {
-        //         Divider = new DividerBlock.Info() 
-        //     });
-        //
-        // // Table mapping
-        // CreateMap<Table, Block>()
-        //     .ConvertUsing((src, _, context) => 
-        //     {
-        //         var rows = new List<TableRow>();
-        //         
-        //         foreach (var rowObj in src)
-        //         {
-        //             if (rowObj is TableRow tableRow)
-        //             {
-        //                 var cells = new List<List<RichTextBase>>();
-        //                 
-        //                 foreach (var cellObj in tableRow)
-        //                 {
-        //                     if (cellObj is TableCell tableCell)
-        //                     {
-        //                         var cellRichTexts = new List<RichTextBase>();
-        //                         
-        //                         foreach (var block in tableCell)
-        //                         {
-        //                             if (block is ParagraphBlock paragraphBlock && paragraphBlock.Inline != null)
-        //                             {
-        //                                 foreach (var inline in paragraphBlock.Inline)
-        //                                 {
-        //                                     var richText = context.Mapper.Map<RichTextBase>(inline);
-        //                                     if (richText != null)
-        //                                     {
-        //                                         cellRichTexts.Add(richText);
-        //                                     }
-        //                                 }
-        //                             }
-        //                         }
-        //                         
-        //                         cells.Add(cellRichTexts);
-        //                     }
-        //                 }
-        //                 
-        //                 rows.Add(new TableRow
-        //                 {
-        //                     Cells = cells
-        //                 });
-        //             }
-        //         }
-        //         
-        //         var hasHeaderRow = src.Count > 0 && src[0] is TableRow headerRow && headerRow.IsHeader;
-        //         
-        //         return new TableBlock
-        //         {
-        //             Table = new TableBlock.Info
-        //             {
-        //                 TableWidth = src.ColumnDefinitions?.Count ?? 0,
-        //                 HasColumnHeader = hasHeaderRow,
-        //                 HasRowHeader = false,
-        //                 Children = rows
-        //             }
-        //         };
-        //     });
-        //
-        // // Inline mappings to RichTextBase
-        // CreateMap<LiteralInline, RichTextBase>()
-        //     .ConvertUsing((src, _, _) => new RichTextText
-        //     {
-        //         Text = new Text
-        //         {
-        //             Content = src.Content.ToString()
-        //         }
-        //     });
-        //
-        // CreateMap<EmphasisInline, RichTextBase>()
-        //     .ConvertUsing((src, _, context) => 
-        //     {
-        //         var content = "";
-        //         foreach (var inline in src)
-        //         {
-        //             if (inline is LiteralInline literalInline)
-        //             {
-        //                 content += literalInline.Content.ToString();
-        //             }
-        //         }
-        //         
-        //         var richText = new RichTextText
-        //         {
-        //             Text = new Text
-        //             {
-        //                 Content = content
-        //             },
-        //             Annotations = new Annotations()
-        //         };
-        //         
-        //         // Apply appropriate formatting based on delimiter
-        //         if (src.DelimiterChar == '*' || src.DelimiterChar == '_')
-        //         {
-        //             if (src.DelimiterCount == 1)
-        //             {
-        //                 richText.Annotations.Italic = true;
-        //             }
-        //             else if (src.DelimiterCount == 2)
-        //             {
-        //                 richText.Annotations.Bold = true;
-        //             }
-        //             else if (src.DelimiterCount == 3)
-        //             {
-        //                 richText.Annotations.Bold = true;
-        //                 richText.Annotations.Italic = true;
-        //             }
-        //         }
-        //         
-        //         return richText;
-        //     });
-        //
-        // CreateMap<LinkInline, RichTextBase>()
-        //     .ConvertUsing((src, _, _) => new RichTextText
-        //     {
-        //         Text = new Text
-        //         {
-        //             Content = src.Title ?? src.Url,
-        //             Link = new Link
-        //             {
-        //                 Url = src.Url
-        //             }
-        //         }
-        //     });
-        //
-        // CreateMap<CodeInline, RichTextBase>()
-        //     .ConvertUsing((src, _, _) => new RichTextText
-        //     {
-        //         Text = new Text
-        //         {
-        //             Content = src.Content.ToString()
-        //         },
-        //         Annotations = new Annotations
-        //         {
-        //             Code = true
-        //         }
-        //     });
+        CreateMap<FencedCodeBlock, Block>()
+            .ConvertUsing((src, _, context) => 
+            {
+                var codeText = src.Lines.ToString();
+                // Map language to a supported Notion code language or default to plain text
+                var notionLanguage = MapToNotionCodeLanguage(src.Info ?? string.Empty);
+                
+                return new Notion.Client.CodeBlock
+                {
+                    Code = new Notion.Client.CodeBlock.Info
+                    {
+                        RichText = new List<RichTextBase>
+                        {
+                            new RichTextText
+                            {
+                                Text = new Text
+                                {
+                                    Content = codeText
+                                }
+                            }
+                        },
+                        Language = notionLanguage
+                    }
+                };
+            });
+        
+        // ThematicBreak (horizontal rule) mapping
+        CreateMap<ThematicBreakBlock, Block>()
+            .ConvertUsing((_, _, _) => new DividerBlock
+            {
+                Divider = new DividerBlock.Data()
+            });
+        
+        // Table mapping
+        CreateMap<Table, Block>()
+            .ConvertUsing((src, _, context) => 
+            {
+                var rows = new List<TableRowBlock>();
+                
+                foreach (var srcRow in src)
+                {
+                    if (srcRow is TableRow srcTableRow)
+                    {
+                        var cells = new List<List<RichTextText>>();
+                        
+                        foreach (var srcCell in srcTableRow)
+                        {
+                            if (srcCell is TableCell srcTableCell)
+                            {
+                                var cellRichTexts = new List<RichTextText>();
+                                
+                                foreach (var block in srcTableCell)
+                                {
+                                    if (block is ParagraphBlock paragraphBlock && paragraphBlock.Inline != null)
+                                    {
+                                        foreach (var inline in paragraphBlock.Inline)
+                                        {
+                                            var richText = context.Mapper.Map<RichTextBase>(inline);
+                                            if (richText is RichTextText richTextText)
+                                            {
+                                                cellRichTexts.Add(richTextText);
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                cells.Add(cellRichTexts);
+                            }
+                        }
+                        
+                        rows.Add(new TableRowBlock
+                        {
+                            TableRow = new TableRowBlock.Info
+                            {
+                                Cells = cells
+                            }
+                        });
+                    }
+                }
+                
+                var hasHeaderRow = src.Count > 0 && src[0] is TableRow headerRow && headerRow.IsHeader;
+                
+                return new TableBlock
+                {
+                    Table = new TableBlock.Info
+                    {
+                        //idk why it is 1 greater column definitons than cells in a row.
+                        TableWidth = src.ColumnDefinitions?.Count - 1 ?? 0,
+                        HasColumnHeader = hasHeaderRow,
+                        HasRowHeader = false,
+                        Children = rows
+                    }
+                };
+            });
+
+        //TODO: still need to implment these:
+        CreateMap<LinkReferenceDefinitionGroup, Block>()
+            .ConvertUsing((_, _, _) => null);
+
+        CreateMap<FootnoteGroup, Block>()
+            .ConvertUsing((_, _, _) => null);
+
     }
     
     // Bulleted list mapping
@@ -494,31 +464,101 @@ public class NotionBlockProfiles : Profile
         }
     }
     
-    private string MapToNotionCodeLanguage(string markdownLanguage)
+    public static string MapToNotionCodeLanguage(string markdownLanguage)
     {
         // Map markdown language identifiers to Notion code block language options
         return markdownLanguage switch
         {
-            "c#" or "csharp" => "c#",
-            "js" or "javascript" => "javascript",
-            "ts" or "typescript" => "typescript",
-            "java" => "java",
-            "py" or "python" => "python",
-            "rb" or "ruby" => "ruby",
-            "go" => "go",
-            "php" => "php",
-            "rust" => "rust",
-            "cpp" or "c++" => "c++",
+            "abap" => "abap",
+            "agda" => "agda",
+            "arduino" => "arduino",
+            "ascii art" or "ascii" => "ascii art",
+            "asm" or "assembly" => "assembly",
+            "sh" or "bash" => "bash",
+            "basic" => "basic",
+            "bnf" => "bnf",
             "c" => "c",
-            "sh" or "bash" => "shell",
-            "html" => "html",
+            "c#" or "csharp" => "c#",
+            "cpp" or "c++" => "c++",
+            "clj" or "clojure" => "clojure",
+            "coffee" or "coffeescript" => "coffeescript",
+            "coq" => "coq",
             "css" => "css",
-            "sql" => "sql",
+            "dart" => "dart",
+            "dhall" => "dhall",
+            "diff" => "diff",
+            "dockerfile" or "docker" => "docker",
+            "ebnf" => "ebnf",
+            "elixir" => "elixir",
+            "elm" => "elm",
+            "erlang" => "erlang",
+            "f#" or "fsharp" => "f#",
+            "flow" => "flow",
+            "fortran" => "fortran",
+            "gherkin" => "gherkin",
+            "glsl" => "glsl",
+            "go" => "go",
+            "graphql" => "graphql",
+            "groovy" => "groovy",
+            "haskell" => "haskell",
+            "hcl" => "hcl",
+            "html" => "html",
+            "idris" => "idris",
+            "java" => "java",
+            "js" or "javascript" => "javascript",
             "json" => "json",
-            "yaml" or "yml" => "yaml",
-            "swift" => "swift",
+            "julia" => "julia",
             "kotlin" => "kotlin",
+            "latex" => "latex",
+            "less" => "less",
+            "lisp" => "lisp",
+            "livescript" => "livescript",
+            "llvm" or "llvm ir" => "llvm ir",
+            "lua" => "lua",
+            "makefile" => "makefile",
+            "md" or "markdown" => "markdown",
+            "markup" => "markup",
+            "matlab" => "matlab",
+            "mathematica" => "mathematica",
+            "mermaid" => "mermaid",
+            "nix" => "nix",
+            "notion-formula" or "notion formula" => "notion formula",
+            "objc" or "objective-c" => "objective-c",
+            "ocaml" => "ocaml",
+            "pascal" => "pascal",
+            "perl" => "perl",
+            "php" => "php",
+            "txt" or "text" => "plain text",
+            "powershell" or "ps1" => "powershell",
+            "prolog" => "prolog",
+            "proto" or "protobuf" => "protobuf",
+            "purescript" => "purescript",
+            "py" or "python" => "python",
+            "r" => "r",
+            "racket" => "racket",
+            "reason" => "reason",
+            "rb" or "ruby" => "ruby",
+            "rust" => "rust",
+            "sass" => "sass",
+            "scala" => "scala",
+            "scheme" => "scheme",
+            "scss" => "scss",
+            "shell" => "shell",
+            "smalltalk" => "smalltalk",
+            "solidity" or "sol" => "solidity",
+            "sql" => "sql",
+            "swift" => "swift",
+            "toml" => "toml",
+            "ts" or "typescript" => "typescript",
+            "vb" or "vb.net" => "vb.net",
+            "verilog" => "verilog",
+            "vhdl" => "vhdl",
+            "visual basic" => "visual basic",
+            "wasm" or "webassembly" => "webassembly",
             "xml" => "xml",
+            "yaml" or "yml" => "yaml",
+            "java/c/c++/c#" => "java/c/c++/c#",
+            "notionscript" => "notionscript",
             _ => "plain text"
         };
     }
