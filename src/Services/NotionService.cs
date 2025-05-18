@@ -1,6 +1,9 @@
 ﻿using System.Text.Json;
+using AutoMapper;
+using Markdig;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Notion.Client;
 using NotionBae.Utilities;
 
 namespace NotionBae.Services;
@@ -8,7 +11,7 @@ namespace NotionBae.Services;
 public interface INotionService
 {
     Task<HttpResponseMessage> Search(string query);
-    Task<HttpResponseMessage> CreatePage(string parentId, string title, string content);
+    Task<Page> CreatePage(string parentId, string title, string content);
     Task<HttpResponseMessage> RetrievePage(string pageId);
     Task<HttpResponseMessage> RetrieveBlockChildren(string blockId);
     Task<HttpResponseMessage> UpdatePage(string pageId, string title);
@@ -43,8 +46,10 @@ public class NotionService : INotionService
 {
     private readonly HttpClient _httpclient;
     private readonly ILogger<NotionService> _logger;
+    private readonly IMapper _mapper;
+    private readonly NotionClient _client;
 
-    public NotionService(HttpClient httpclient, IConfiguration configuration, ILogger<NotionService> logger)
+    public NotionService(HttpClient httpclient, IConfiguration configuration, ILogger<NotionService> logger, IMapper mapper)
     {
         var token = configuration["NotionApiKey"];
         _httpclient = httpclient;
@@ -53,6 +58,13 @@ public class NotionService : INotionService
         _httpclient.DefaultRequestHeaders.Remove("Authorization");
         _httpclient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
         _logger = logger;
+        _mapper = mapper;
+        
+        //TODO fix this:
+        _client = NotionClientFactory.Create(new ClientOptions
+        {
+            AuthToken = token
+        });
     }
     
     public async Task<HttpResponseMessage> Search(string query)
@@ -61,32 +73,27 @@ public class NotionService : INotionService
         return await SendPostRequestAsync("search", payload);
     }
     
-    public async Task<HttpResponseMessage> CreatePage(string parentId, string title, string content)
+    public async Task<Page> CreatePage(string parentId, string title, string content)
     {
-        var blocks = MarkdownToNotionConverter.ConvertToNotionBlocks(content);
-        var payload = new
-        {
-            parent = new
-            {
-                page_id = parentId
-            },
-            properties = new
-            {
-                title = new object[]
-                {
-                    new
-                    {
-                        text = new
-                        {
-                            content = title
-                        }
-                    }
-                }
-            },
-            children = blocks
-        };
+        // var blocks = MarkdownToNotionConverter.ConvertToNotionBlocks(content);
+        var documents = Markdown.Parse(content);
         
-        return await SendPostRequestAsync("pages", payload);
+        var blocks = _mapper.Map<List<IBlock>>(documents, opt => opt.Items["AllBlocks"] = new List<Block>());
+
+        var pagesCreateParameters = PagesCreateParametersBuilder
+            .Create(new ParentPageInput
+            {
+                PageId = parentId
+            })
+            .AddProperty("title", new TitlePropertyValue
+            {
+                Title = new List<RichTextBase> {new RichTextText {Text = new Text {Content = "Test"}}}
+            });
+        
+        var page = pagesCreateParameters.Build();
+        page.Children = blocks;
+
+        return await _client.Pages.CreateAsync(page);
     }
 
     public async Task<HttpResponseMessage> RetrievePage(string pageId)

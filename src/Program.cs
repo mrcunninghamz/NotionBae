@@ -29,6 +29,7 @@ builder.Services
     .WithStdioServerTransport()
     .WithToolsFromAssembly();
 
+builder.Services.AddAutoMapper(typeof(Program));
 // Register HttpClient for NotionService
 builder.Services.AddHttpClient<INotionService, NotionService>()
     .AddPolicyHandler(Policy.BulkheadAsync<HttpResponseMessage>(10, Int32.MaxValue))
