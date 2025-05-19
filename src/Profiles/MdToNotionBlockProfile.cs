@@ -12,9 +12,9 @@ using QuoteBlock = Markdig.Syntax.QuoteBlock;
 
 namespace NotionBae.Profiles;
 
-public class NotionBlockProfile : Profile
+public class MdToNotionBlockProfile : Profile
 {
-    public NotionBlockProfile()
+    public MdToNotionBlockProfile()
     {
         // Map from Markdig MarkdownDocument to a list of Notion Blocks
         CreateMap<MarkdownDocument, List<IBlock>>()
@@ -108,7 +108,7 @@ public class NotionBlockProfile : Profile
             {
                 Text = new Text
                 {
-                    Content = src.ToString()
+                    Content = src.Content
                 },
                 Annotations = new Annotations
                 {
@@ -119,7 +119,7 @@ public class NotionBlockProfile : Profile
                     IsCode = true,
                     Color = Color.Default
                 },
-                PlainText = src.ToString()
+                PlainText = src.Content
             });
             
         // Paragraph block mapping
@@ -445,17 +445,17 @@ public class NotionBlockProfile : Profile
         }
     }
 
-    private void AddChildren<T>(Notion.Client.IBlock lastItem, List<T> children) where T : Block
+    private void AddChildren<T>(IBlock lastItem, List<T> children) where T : Block
     {
         switch (lastItem)
         {
             case Notion.Client.ParagraphBlock lastItemParagraphBlock:
                 lastItemParagraphBlock.Paragraph.Children = children as IEnumerable<INonColumnBlock>;
                 break;
-            case Notion.Client.BulletedListItemBlock lastItemBulletedListItemBlock:
+            case BulletedListItemBlock lastItemBulletedListItemBlock:
                 lastItemBulletedListItemBlock.BulletedListItem.Children = children as IEnumerable<INonColumnBlock>;
                 break;
-            case Notion.Client.NumberedListItemBlock lastItemNumberedListItemBlock:
+            case NumberedListItemBlock lastItemNumberedListItemBlock:
                 lastItemNumberedListItemBlock.NumberedListItem.Children = children as IEnumerable<INonColumnBlock>;
                 break;
             case Notion.Client.QuoteBlock lastItemQuoteBlock:
