@@ -299,4 +299,26 @@ stme-dbo/39312/stme-dob-inventory-api
                 ItExpr.IsAny<CancellationToken>()
             );
     }
+
+    [Fact]
+    public async Task NoOrphanedBullets()
+    {
+        // arrange
+        var content = @"
+## Create Multiple Inventory Repositories per App
+
+### TODO List
+- Inventory core PR 🟢 Completed
+- Let DevOps know of the new API pipeline with Azure Function template (appId: 39312, primary/secondary regions) 🟢 Completed
+- Inventory API PR 🟢 Completed
+- Create enabler for DevOps to update APIM endpoints:
+  - INT: Point APIM to new front door location for integration environment ⌚ In progress
+  - CERT: Point APIM to new front door location for certification environment 🔵 Not started
+  - PROD: Point APIM to new front door location for production environment 🔵 Not started
+
+";
+        
+        // act
+        var appendBlocks = TestSubject.MarkdownToNotionAppend(content);
+    }
 }

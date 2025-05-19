@@ -188,7 +188,12 @@ public class NotionService : INotionService
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var documents = Markdown.Parse(content, pipeline);
         
-        var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt => opt.Items["AllBlocks"] = new List<BlockObjectRequest>());
+        var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt =>
+            {
+                opt.Items["AllBlocks"] = new List<BlockObjectRequest>();
+                opt.Items["ParentBlock"] = null;
+            }
+        );
 
         return blocks;
     }

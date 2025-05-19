@@ -396,13 +396,20 @@ public class MdToNotionBlockProfile : Profile
                                 }
                             }
                         }
+                        else if (block is ListBlock listBlock)
+                        {
+                            children.Add(new BulletedListItemBlock {BulletedListItem = new BulletedListItemBlock.Info {RichText = richTexts, Color = Color.Default}});
+                            AddBlockChildren(items!, children);
+                            context.Mapper.Map<IBlockObjectRequest>(block);
+                            return null;
+                        }
                     }
 
                     children.Add(new BulletedListItemBlock {BulletedListItem = new BulletedListItemBlock.Info {RichText = richTexts, Color = Color.Default}});
                 }
             }
             
-            AddChildren(items, children);
+            AddBlockChildren(items, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -430,13 +437,20 @@ public class MdToNotionBlockProfile : Profile
                                 }
                             }
                         }
+                        else if (block is ListBlock listBlock)
+                        {
+                            children.Add(new NumberedListItemBlock {NumberedListItem = new NumberedListItemBlock.Info {RichText = richTexts, Color = Color.Default}});
+                            AddBlockChildren(items!, children);
+                            context.Mapper.Map<IBlockObjectRequest>(block);
+                            return null;
+                        }
                     }
 
                     children.Add(new NumberedListItemBlock {NumberedListItem = new NumberedListItemBlock.Info {RichText = richTexts, Color = Color.Default}});
                 }
             }
             
-            AddChildren(items, children);
+            AddBlockChildren(items, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -444,7 +458,7 @@ public class MdToNotionBlockProfile : Profile
         }
     }
 
-    private void AddChildren<T>(List<IBlock> items, List<T> children) where T : Block
+    private void AddBlockChildren<T>(List<IBlock> items, List<T> children) where T : Block
     {
         var lastItem = items.Last();
         switch (lastItem)
