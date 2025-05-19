@@ -368,8 +368,13 @@ public class NotionBlockToMdProfile : Profile
             // Handle text with annotations
             if (textBlock.Annotations != null)
             {
-                if (!textBlock.Annotations.IsBold && !textBlock.Annotations.IsItalic &&
-                    !textBlock.Annotations.IsStrikeThrough) return new LiteralInline(content);
+                if (!textBlock.Annotations.IsBold 
+                    && !textBlock.Annotations.IsItalic 
+                    && !textBlock.Annotations.IsStrikeThrough 
+                    && !textBlock.Annotations.IsCode)
+                {
+                    return new LiteralInline(content);
+                }
                     
                 // Determine the emphasis character and count
                 char delimiterChar;
