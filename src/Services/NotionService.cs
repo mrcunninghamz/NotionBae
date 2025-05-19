@@ -169,7 +169,7 @@ public class NotionService : INotionService
         return await _client.Blocks.AppendChildrenAsync(blockAppendChildrenRequest);
     }
 
-    private List<IBlock> MarkdownToNotion(string content)
+    public List<IBlock> MarkdownToNotion(string content)
     {
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var documents = Markdown.Parse(content, pipeline);
@@ -179,12 +179,17 @@ public class NotionService : INotionService
         return blocks;
     }
     
-    private List<IBlockObjectRequest> MarkdownToNotionAppend(string content)
+    public List<IBlockObjectRequest> MarkdownToNotionAppend(string content)
     {
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var documents = Markdown.Parse(content, pipeline);
         
-        var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt => opt.Items["AllBlocks"] = new List<BlockObjectRequest>());
+        var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt =>
+            {
+                opt.Items["AllBlocks"] = new List<BlockObjectRequest>();
+                opt.Items["ParentBlock"] = null;
+            }
+        );
 
         return blocks;
     }
