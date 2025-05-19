@@ -10,9 +10,9 @@ using QuoteBlock = Markdig.Syntax.QuoteBlock;
 
 namespace NotionBae.Profiles;
 
-public class BlockObjectRequestProfile : Profile
+public class MdToBlockObjectRequestProfile : Profile
 {
-    public BlockObjectRequestProfile()
+    public MdToBlockObjectRequestProfile()
     {
         // Map from Markdig MarkdownDocument to a list of Notion Blocks
         CreateMap<MarkdownDocument, List<IBlockObjectRequest>>()
@@ -154,7 +154,7 @@ public class BlockObjectRequestProfile : Profile
             {
                 var codeText = src.Lines.ToString();
                 // Map language to a supported Notion code language or default to plain text
-                var notionLanguage = NotionBlockProfile.MapToNotionCodeLanguage(string.Empty);
+                var notionLanguage = MdToNotionBlockProfile.MapToNotionCodeLanguage(string.Empty);
                 
                 return new CodeBlockRequest
                 {
@@ -179,7 +179,7 @@ public class BlockObjectRequestProfile : Profile
             {
                 var codeText = src.Lines.ToString();
                 // Map language to a supported Notion code language or default to plain text
-                var notionLanguage = NotionBlockProfile.MapToNotionCodeLanguage(src.Info ?? string.Empty);
+                var notionLanguage = MdToNotionBlockProfile.MapToNotionCodeLanguage(src.Info ?? string.Empty);
                 
                 return new CodeBlockRequest
                 {

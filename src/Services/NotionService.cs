@@ -1,11 +1,15 @@
 ﻿using System.Text.Json;
 using AutoMapper;
 using Markdig;
+using Markdig.Renderers.Normalize;
+using Markdig.Syntax;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Notion.Client;
 using NotionBae.Utilities;
+using Block = Notion.Client.Block;
 using CodeBlock = Markdig.Syntax.CodeBlock;
+using IBlock = Notion.Client.IBlock;
 using ParagraphBlock = NotionBae.Utilities.ParagraphBlock;
 
 namespace NotionBae.Services;
@@ -14,7 +18,7 @@ public interface INotionService
 {
     Task<HttpResponseMessage> Search(string query);
     Task<Page> CreatePage(string parentId, string title, string content);
-    Task<HttpResponseMessage> RetrievePage(string pageId);
+    Task<Page> RetrievePage(string pageId);
     Task<HttpResponseMessage> RetrieveBlockChildren(string blockId);
     Task<HttpResponseMessage> UpdatePage(string pageId, string title);
     Task<HttpResponseMessage> UpdateBlock(string blockId, string content);
@@ -94,9 +98,9 @@ public class NotionService : INotionService
         return await _client.Pages.CreateAsync(page);
     }
 
-    public async Task<HttpResponseMessage> RetrievePage(string pageId)
+    public async Task<Page> RetrievePage(string pageId)
     {
-        return await _httpclient.GetAsync($"pages/{pageId}");
+        return await _client.Pages.RetrieveAsync(pageId);
     }
 
     public async Task<HttpResponseMessage> RetrieveBlockChildren(string blockId)
@@ -169,7 +173,7 @@ public class NotionService : INotionService
         return await _client.Blocks.AppendChildrenAsync(blockAppendChildrenRequest);
     }
 
-    private List<IBlock> MarkdownToNotion(string content)
+    public List<IBlock> MarkdownToNotion(string content)
     {
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var documents = Markdown.Parse(content, pipeline);
@@ -179,7 +183,7 @@ public class NotionService : INotionService
         return blocks;
     }
     
-    private List<IBlockObjectRequest> MarkdownToNotionAppend(string content)
+    public List<IBlockObjectRequest> MarkdownToNotionAppend(string content)
     {
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var documents = Markdown.Parse(content, pipeline);
@@ -187,6 +191,20 @@ public class NotionService : INotionService
         var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt => opt.Items["AllBlocks"] = new List<BlockObjectRequest>());
 
         return blocks;
+    }
+
+    public string NotionToMarkdown(List<IBlock> blocks)
+    {
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var markdown = _mapper.Map<MarkdownDocument>(blocks, opt => opt.Items["AllBlocks"] = new MarkdownDocument());
+        
+        var writer = new StringWriter();
+        var renderer = new NormalizeRenderer(writer);
+        pipeline.Setup(renderer);
+        
+        renderer.Render(markdown);
+        
+        return writer.ToString();
     }
 
     

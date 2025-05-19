@@ -60,48 +60,9 @@ public class PageTool
             // Get page metadata
             var pageResponse = await _notionService.RetrievePage(pageId);
 
-            if (!pageResponse.IsSuccessStatusCode)
-            {
-                var errorContent = await pageResponse.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
+            var privateUrl = pageResponse.Url ?? "";
+            var publicUrl = pageResponse.PublicUrl ?? "Not publicly shared";
 
-                _logger.LogError("Error retrieving Notion page metadata: {StatusCode} with message: {Message}",
-                    pageResponse.StatusCode, detailedError);
-                return $"Error retrieving Notion page metadata: {pageResponse.StatusCode}\nDetails: {detailedError}";
-            }
-
-            var pageResponseContent = await pageResponse.Content.ReadAsStringAsync();
-            
-            var pageResult = JsonDocument.Parse(pageResponseContent);
-
-            var privateUrl = "";
-            var publicUrl = "";
-            var title = "";
-
-            // Extract private URL
-            if (pageResult.RootElement.TryGetProperty("url", out var urlProp))
-            {
-                privateUrl = urlProp.GetString() ?? "";
-            }
-
-            // Extract public URL
-            if (pageResult.RootElement.TryGetProperty("public_url", out var publicUrlProp))
-            {
-                publicUrl = publicUrlProp.GetString() ?? "Not publicly shared";
-            }
-
-            // Extract page title
-            if (pageResult.RootElement.TryGetProperty("properties", out var properties) &&
-                properties.TryGetProperty("title", out var titleProp) &&
-                titleProp.TryGetProperty("title", out var titleArray) &&
-                titleArray.GetArrayLength() > 0)
-            {
-                var firstTitleElement = titleArray[0];
-                if (firstTitleElement.TryGetProperty("plain_text", out var plainText))
-                {
-                    title = plainText.GetString() ?? "";
-                }
-            }
 
             // Get page content
             var markdownPageContent = new StringBuilder();
@@ -214,7 +175,7 @@ public class PageTool
                 await _notionService.DeleteBlocks(blockIds);
             }
         
-            var response = await _notionService.AppendBlockChildren(pageId, content);
+            await _notionService.AppendBlockChildren(pageId, content);
     
             _logger.LogInformation("Successfully updated content for page ID: {PageId}", pageId);
             return $"Page content updated successfully!\nID: {pageId}";
