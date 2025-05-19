@@ -290,7 +290,7 @@ public class BlockObjectRequestProfile : Profile
                 if (markDigBlock is ListItemBlock listItem)
                 {
                     var richTexts = new List<RichTextBase>();
-
+            
                     foreach (var block in listItem)
                     {
                         if (block is ParagraphBlock paragraphBlock && paragraphBlock.Inline != null)
@@ -304,15 +304,23 @@ public class BlockObjectRequestProfile : Profile
                                 }
                             }
                         }
+                        else if (block is ListBlock listBlock)
+                        {
+                            children.Add(new BulletedListItemBlockRequest {BulletedListItem = new BulletedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}});
+                            AddBlockChildren(items!, children);
+                            context.Mapper.Map<IBlockObjectRequest>(block);
+                            return null;
+                        }
                     }
-
+            
                     children.Add(new BulletedListItemBlockRequest {BulletedListItem = new BulletedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}});
                 }
             }
             
-            AddChildren(items!, children);
-
+            AddBlockChildren(items!, children);
+            
             context.Items["AllBlocks"] = items;
+            
             // return nothing because we are adding as children to previous block.
             return null;
         }
@@ -338,13 +346,20 @@ public class BlockObjectRequestProfile : Profile
                                 }
                             }
                         }
+                        else if (block is ListBlock listBlock)
+                        {
+                            children.Add(new NumberedListItemBlockRequest {NumberedListItem = new NumberedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}});
+                            AddBlockChildren(items!, children);
+                            context.Mapper.Map<IBlockObjectRequest>(block);
+                            return null;
+                        }
                     }
 
                     children.Add(new NumberedListItemBlockRequest {NumberedListItem = new NumberedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}});
                 }
             }
             
-            AddChildren(items!, children);
+            AddBlockChildren(items!, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -352,7 +367,7 @@ public class BlockObjectRequestProfile : Profile
         }
     }
     
-    private void AddChildren<T>(List<IBlockObjectRequest> items, List<T> children) where T : IBlockObjectRequest
+    private void AddBlockChildren<T>(List<IBlockObjectRequest> items, IEnumerable<T> children) where T : IBlockObjectRequest
     {
         var lastItem = items.Last();
         switch (lastItem)
@@ -361,7 +376,7 @@ public class BlockObjectRequestProfile : Profile
                 lastItemParagraphBlock.Paragraph.Children = children as IEnumerable<INonColumnBlockRequest>;
                 break;
             case BulletedListItemBlockRequest lastItemBulletedListItemBlock:
-                lastItemBulletedListItemBlock.BulletedListItem.Children = children as IEnumerable<INonColumnBlockRequest>;
+                lastItemBulletedListItemBlock.BulletedListItem.Children = children as IEnumerable<BulletedListItemBlockRequest>;
                 break;
             case NumberedListItemBlockRequest lastItemNumberedListItemBlock:
                 lastItemNumberedListItemBlock.NumberedListItem.Children = children as IEnumerable<INonColumnBlockRequest>;
