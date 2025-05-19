@@ -156,6 +156,72 @@ which you wish to be displayed literally, ex.: \`foo\`, \*bar\*, etc.
         // Act
         var result = await TestSubject.CreatePage("Test", "Test", MD_CONTENT);
     }
+
+    [Fact]
+    public async Task MarkDownToNotion_RadarPage_MappingWorks()
+    {
+        // Arrange
+        var radarPage = @"
+# Create Multiple Inventory Repositories per App
+
+## Overview
+**Description**: Migrate from monolithic repository structure to individual repositories per application or deployable unit for the Digital Order Book services.
+
+**Status**: ⌚ In progress (Core and API components completed, DB Change Forwarder in progress)
+
+**ADO Work Item**: [#1843867 - Create multiple inventory repos per app](https://dev.azure.com/meijervsts/_workitems/edit/1843867)
+
+**Target Date**: Q2 2025
+
+## Details
+**Last Updated**: May 19, 2025
+
+### Progress Summary
+- ~~Creating separate repositories for different components of the Inventory microservice~~
+- Moving code from the monolithic repo to new specialized repositories:
+  - stme-dob-inventory-core 🟢 **Completed**
+  - stme-dob-inventory-api 🟢 **Completed** (Pipeline configured with Azure Function template, API structure implemented)
+  - stme-dob-inventory-db-change-forwarder ⌚ **In progress**
+  - stme-dob-inventory-event-forwarder 🔵 Not started
+  - stme-dob-inventory-dob-adaptor 🔵 Not started
+  - stme-dob-inventory-data-migration 🔵 Not started
+- Ensuring each repo has proper CI/CD pipeline configuration ⌚ In progress
+- Coordinating with DevOps team on repository structure and permissions ⌚ In progress
+
+## Action Items
+### TODO List
+- Inventory core PR 🟢 **Completed**
+- Let DevOps know of the new API pipeline with Azure Function template (appId: 39312, primary/secondary regions) 🟢 **Completed**
+- Inventory API PR 🟢 **Completed**
+- Create enabler for DevOps to update APIM endpoints:
+  - INT: Point APIM to new front door location for integration environment ⌚ In progress
+  - CERT: Point APIM to new front door location for certification environment 🔵 Not started
+  - PROD: Point APIM to new front door location for production environment 🔵 Not started
+
+## Notes
+This is just to keep an idea of what the deployments are going to look like. Both the inventory-core and inventory-api components have been successfully migrated to their own repositories as of May 15, 2025. The inventory-api repository has been fully implemented with an Azure Function App structure, including controllers, middleware, and services for inventory management operations. Both repositories now have proper CI/CD pipelines configured. As of May 19, 2025, work has begun on the stme-dob-inventory-db-change-forwarder repository implementation.
+
+### Infrastructure Structure
+```markdown
+stme-dob/39312/dob-core // remove identity that's there.
+stme-dbo/39312/stme-dob-inventory // current this will be destroyed.
+stme-dbo/39312/stme-dob-inventory-core
+    - keyvault
+    - app config
+    - event hub
+    - service bus
+    - analytics // not doing this anymore
+    - cosmos
+stme-dbo/39312/stme-dob-inventory-api
+    - front door profile
+    - front door firewall
+    - front door configuration
+    - function app
+    - identity
+";
+        // Act
+        var blocks = TestSubject.MarkdownToNotion(radarPage);
+    }
     
     [Fact]
     public async Task AppendBlockChildren_WithValidPageContent_SendsProperRequest()

@@ -374,7 +374,6 @@ public class MdToNotionBlockProfile : Profile
     {
         // For bulleted list
         var items = context.Items["AllBlocks"] as List<Notion.Client.IBlock>;
-        var lastItem = items?.LastOrDefault();
         if (!src.IsOrdered)
         {
             var children = new List<BulletedListItemBlock>();
@@ -403,7 +402,7 @@ public class MdToNotionBlockProfile : Profile
                 }
             }
             
-            AddChildren(lastItem!, children);
+            AddChildren(items, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -437,7 +436,7 @@ public class MdToNotionBlockProfile : Profile
                 }
             }
             
-            AddChildren(lastItem!, children);
+            AddChildren(items, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -445,8 +444,10 @@ public class MdToNotionBlockProfile : Profile
         }
     }
 
-    private void AddChildren<T>(IBlock lastItem, List<T> children) where T : Block
+    private void AddChildren<T>(List<IBlock> items, List<T> children) where T : Block
     {
+        
+        var lastItem = items.Last();
         switch (lastItem)
         {
             case Notion.Client.ParagraphBlock lastItemParagraphBlock:
@@ -460,6 +461,9 @@ public class MdToNotionBlockProfile : Profile
                 break;
             case Notion.Client.QuoteBlock lastItemQuoteBlock:
                 lastItemQuoteBlock.Quote.Children = children as IEnumerable<INonColumnBlock>;
+                break;
+            default:
+                items.AddRange(children);
                 break;
         }
     }
