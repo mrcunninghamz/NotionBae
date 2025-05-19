@@ -374,7 +374,6 @@ public class NotionBlockProfile : Profile
     {
         // For bulleted list
         var items = context.Items["AllBlocks"] as List<Notion.Client.IBlock>;
-        var lastItem = items?.LastOrDefault();
         if (!src.IsOrdered)
         {
             var children = new List<BulletedListItemBlock>();
@@ -403,7 +402,7 @@ public class NotionBlockProfile : Profile
                 }
             }
             
-            AddChildren(lastItem!, children);
+            AddChildren(items, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -437,7 +436,7 @@ public class NotionBlockProfile : Profile
                 }
             }
             
-            AddChildren(lastItem!, children);
+            AddChildren(items, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -445,21 +444,25 @@ public class NotionBlockProfile : Profile
         }
     }
 
-    private void AddChildren<T>(Notion.Client.IBlock lastItem, List<T> children) where T : Block
+    private void AddChildren<T>(List<IBlock> items, List<T> children) where T : Block
     {
+        var lastItem = items.Last();
         switch (lastItem)
         {
             case Notion.Client.ParagraphBlock lastItemParagraphBlock:
                 lastItemParagraphBlock.Paragraph.Children = children as IEnumerable<INonColumnBlock>;
                 break;
-            case Notion.Client.BulletedListItemBlock lastItemBulletedListItemBlock:
+            case BulletedListItemBlock lastItemBulletedListItemBlock:
                 lastItemBulletedListItemBlock.BulletedListItem.Children = children as IEnumerable<INonColumnBlock>;
                 break;
-            case Notion.Client.NumberedListItemBlock lastItemNumberedListItemBlock:
+            case NumberedListItemBlock lastItemNumberedListItemBlock:
                 lastItemNumberedListItemBlock.NumberedListItem.Children = children as IEnumerable<INonColumnBlock>;
                 break;
             case Notion.Client.QuoteBlock lastItemQuoteBlock:
                 lastItemQuoteBlock.Quote.Children = children as IEnumerable<INonColumnBlock>;
+                break;
+            default:
+                items.AddRange(children);
                 break;
         }
     }

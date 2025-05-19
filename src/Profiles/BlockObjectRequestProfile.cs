@@ -282,7 +282,6 @@ public class BlockObjectRequestProfile : Profile
     {
         // For bulleted list
         var items = context.Items["AllBlocks"] as List<Notion.Client.IBlockObjectRequest>;
-        var lastItem = items?.LastOrDefault();
         if (!src.IsOrdered)
         {
             var children = new List<BulletedListItemBlockRequest>();
@@ -311,7 +310,7 @@ public class BlockObjectRequestProfile : Profile
                 }
             }
             
-            AddChildren(lastItem!, children);
+            AddChildren(items!, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -345,7 +344,7 @@ public class BlockObjectRequestProfile : Profile
                 }
             }
             
-            AddChildren(lastItem!, children);
+            AddChildren(items!, children);
 
             context.Items["AllBlocks"] = items;
             // return nothing because we are adding as children to previous block.
@@ -353,8 +352,9 @@ public class BlockObjectRequestProfile : Profile
         }
     }
     
-    private void AddChildren<T>(IBlockObjectRequest lastItem, List<T> children) where T : IBlockObjectRequest
+    private void AddChildren<T>(List<IBlockObjectRequest> items, List<T> children) where T : IBlockObjectRequest
     {
+        var lastItem = items.Last();
         switch (lastItem)
         {
             case ParagraphBlockRequest lastItemParagraphBlock:
@@ -368,6 +368,13 @@ public class BlockObjectRequestProfile : Profile
                 break;
             case QuoteBlockRequest lastItemQuoteBlock:
                 lastItemQuoteBlock.Quote.Children = children as IEnumerable<INonColumnBlockRequest>;
+                break;
+            default:
+                var insertChidlren = children as IEnumerable<IBlockObjectRequest>;
+                if (insertChidlren != null)
+                {
+                    items.AddRange(insertChidlren);
+                }
                 break;
         }
     }
