@@ -446,7 +446,6 @@ public class NotionBlockProfile : Profile
 
     private void AddChildren<T>(List<IBlock> items, List<T> children) where T : Block
     {
-        
         var lastItem = items.Last();
         switch (lastItem)
         {
