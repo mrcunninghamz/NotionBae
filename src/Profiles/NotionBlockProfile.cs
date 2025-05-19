@@ -108,7 +108,7 @@ public class NotionBlockProfile : Profile
             {
                 Text = new Text
                 {
-                    Content = src.ToString()
+                    Content = src.Content
                 },
                 Annotations = new Annotations
                 {
@@ -119,7 +119,7 @@ public class NotionBlockProfile : Profile
                     IsCode = true,
                     Color = Color.Default
                 },
-                PlainText = src.ToString()
+                PlainText = src.Content
             });
             
         // Paragraph block mapping
