@@ -221,6 +221,15 @@ stme-dbo/39312/stme-dob-inventory-api
 ";
         // Act
         var blocks = TestSubject.MarkdownToNotion(radarPage);
+        var requestBocks = TestSubject.MarkdownToNotionAppend(radarPage);
+        
+        // Assert
+        Assert.NotNull(blocks);
+        Assert.NotEmpty(blocks);
+        Assert.NotNull(requestBocks);
+        Assert.NotEmpty(requestBocks);
+        
+        Assert.Equal(requestBocks.Count, blocks.Count);
     }
     
     [Fact]
