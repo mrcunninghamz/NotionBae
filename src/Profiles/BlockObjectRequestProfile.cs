@@ -281,90 +281,52 @@ public class MdToBlockObjectRequestProfile : Profile
     IBlockObjectRequest MappingListBlock(ListBlock src, IBlockObjectRequest _, ResolutionContext context)
     {
         // For bulleted list
-        var items = context.Items["AllBlocks"] as List<Notion.Client.IBlockObjectRequest>;
+        var items = context.Items["AllBlocks"] as List<IBlockObjectRequest>;
         if (!src.IsOrdered)
         {
-            var children = new List<BulletedListItemBlockRequest>();
-            foreach (var markDigBlock in src)
+            var (richTextBases, listBlock) = NotionBlockProfile.GenerateChildren(src, context, items!);
+
+            if (listBlock != null)
             {
-                if (markDigBlock is ListItemBlock listItem)
-                {
-                    var richTexts = new List<RichTextBase>();
-            
-                    foreach (var block in listItem)
-                    {
-                        if (block is ParagraphBlock paragraphBlock && paragraphBlock.Inline != null)
-                        {
-                            foreach (var inline in paragraphBlock.Inline)
-                            {
-                                var richText = context.Mapper.Map<RichTextBase>(inline);
-                                if (richText != null)
-                                {
-                                    richTexts.Add(richText);
-                                }
-                            }
-                        }
-                        else if (block is ListBlock listBlock)
-                        {
-                            children.Add(new BulletedListItemBlockRequest {BulletedListItem = new BulletedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}});
-                            AddBlockChildren(items!, children);
-                            context.Mapper.Map<IBlockObjectRequest>(block);
-                            return null;
-                        }
-                    }
-            
-                    children.Add(new BulletedListItemBlockRequest {BulletedListItem = new BulletedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}});
-                }
+                AddBlockChildren(
+                    items!,
+                    richTextBases.Select(richTexts => new BulletedListItemBlockRequest {BulletedListItem = new BulletedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}})
+                );
+                context.Mapper.Map<IBlockObjectRequest>(listBlock);
+                return null;
             }
             
-            AddBlockChildren(items!, children);
+            AddBlockChildren(
+                items!,
+                richTextBases.Select(richTexts => new BulletedListItemBlockRequest {BulletedListItem = new BulletedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}})
+            );
             
             context.Items["AllBlocks"] = items;
-            
-            // return nothing because we are adding as children to previous block.
-            return null;
         }
         else
         {
-            var children = new List<NumberedListItemBlockRequest>();
-            foreach (var item in src)
+            var (richTextBases, listBlock) = NotionBlockProfile.GenerateChildren(src, context, items!);
+
+            if (listBlock != null)
             {
-                if (item is ListItemBlock listItem)
-                {
-                    var richTexts = new List<RichTextBase>();
-
-                    foreach (var block in listItem)
-                    {
-                        if (block is ParagraphBlock paragraphBlock && paragraphBlock.Inline != null)
-                        {
-                            foreach (var inline in paragraphBlock.Inline)
-                            {
-                                var richText = context.Mapper.Map<RichTextBase>(inline);
-                                if (richText != null)
-                                {
-                                    richTexts.Add(richText);
-                                }
-                            }
-                        }
-                        else if (block is ListBlock listBlock)
-                        {
-                            children.Add(new NumberedListItemBlockRequest {NumberedListItem = new NumberedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}});
-                            AddBlockChildren(items!, children);
-                            context.Mapper.Map<IBlockObjectRequest>(block);
-                            return null;
-                        }
-                    }
-
-                    children.Add(new NumberedListItemBlockRequest {NumberedListItem = new NumberedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}});
-                }
+                AddBlockChildren(
+                    items!,
+                    richTextBases.Select(richTexts => new NumberedListItemBlockRequest {NumberedListItem = new NumberedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}})
+                );
+                context.Mapper.Map<IBlockObjectRequest>(listBlock);
+                return null;
             }
             
-            AddBlockChildren(items!, children);
-
+            AddBlockChildren(
+                items!,
+                richTextBases.Select(richTexts => new NumberedListItemBlockRequest {NumberedListItem = new NumberedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}})
+            );
+            
             context.Items["AllBlocks"] = items;
-            // return nothing because we are adding as children to previous block.
-            return null;
         }
+            
+        // return nothing because we are adding as children to previous block.
+        return null;
     }
     
     private void AddBlockChildren<T>(List<IBlockObjectRequest> items, IEnumerable<T> children) where T : IBlockObjectRequest
