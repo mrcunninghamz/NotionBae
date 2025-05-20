@@ -9,6 +9,7 @@ using NotionBae.Utilities;
 using TestBae.BaseClasses.AutoFixture;
 using Xunit;
 using AutoFixture;
+using Notion.Client;
 
 namespace NotionBae.Tests.Services;
 
@@ -319,6 +320,17 @@ stme-dbo/39312/stme-dob-inventory-api
 ";
         
         // act
+        var blocks = TestSubject.MarkdownToNotion(content);
         var appendBlocks = TestSubject.MarkdownToNotionAppend(content);
+        
+        // Assert
+        Assert.NotEmpty(appendBlocks);
+        Assert.Equal(6, appendBlocks.Count);
+        Assert.Equal(3, (appendBlocks.Last() as BulletedListItemBlockRequest)!.BulletedListItem.Children.Count());
+        
+        
+        Assert.NotEmpty(blocks);
+        Assert.Equal(6, blocks.Count);
+        Assert.Equal(3, (blocks.Last() as BulletedListItemBlock)!.BulletedListItem.Children.Count());
     }
 }
