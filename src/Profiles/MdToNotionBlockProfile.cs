@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using System.Collections;
+using AutoMapper;
 using Markdig.Extensions.Footnotes;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
@@ -462,16 +463,32 @@ public class MdToNotionBlockProfile : Profile
         switch (lastItem)
         {
             case Notion.Client.ParagraphBlock lastItemParagraphBlock:
-                lastItemParagraphBlock.Paragraph.Children = children as IEnumerable<INonColumnBlock>;
+                lastItemParagraphBlock.Paragraph.Children ??= new List<INonColumnBlock>();
+                foreach(var child in (children as IEnumerable<INonColumnBlock>)!)
+                {
+                    lastItemParagraphBlock.Paragraph.Children = lastItemParagraphBlock.Paragraph.Children.Append(child);
+                }
                 break;
             case BulletedListItemBlock lastItemBulletedListItemBlock:
-                lastItemBulletedListItemBlock.BulletedListItem.Children = children as IEnumerable<INonColumnBlock>;
+                lastItemBulletedListItemBlock.BulletedListItem.Children ??= new List<INonColumnBlock>();
+                foreach(var child in (children as IEnumerable<INonColumnBlock>)!)
+                {
+                    lastItemBulletedListItemBlock.BulletedListItem.Children = lastItemBulletedListItemBlock.BulletedListItem.Children.Append(child);
+                }
                 break;
             case NumberedListItemBlock lastItemNumberedListItemBlock:
-                lastItemNumberedListItemBlock.NumberedListItem.Children = children as IEnumerable<INonColumnBlock>;
+                lastItemNumberedListItemBlock.NumberedListItem.Children ??= new List<INonColumnBlock>();
+                foreach(var child in (children as IEnumerable<INonColumnBlock>)!)
+                {
+                    lastItemNumberedListItemBlock.NumberedListItem.Children = lastItemNumberedListItemBlock.NumberedListItem.Children.Append(child);
+                }
                 break;
             case Notion.Client.QuoteBlock lastItemQuoteBlock:
-                lastItemQuoteBlock.Quote.Children = children as IEnumerable<INonColumnBlock>;
+                lastItemQuoteBlock.Quote.Children ??= new List<INonColumnBlock>();
+                foreach(var child in (children as IEnumerable<INonColumnBlock>)!)
+                {
+                    lastItemQuoteBlock.Quote.Children = lastItemQuoteBlock.Quote.Children.Append(child);
+                }
                 break;
             default:
                 items.AddRange(children);

@@ -65,17 +65,16 @@ public class PageTool
 
 
             // Get page content
-            var markdownPageContent = new StringBuilder();
-            await GetPageMDContent(pageId, markdownPageContent);
+            var content = await _notionService.GetPageContent(pageId);
 
             // Combine metadata and content into a single response
             var markdownResponse = $"""
-                            ---
+                            <!--
                             - pageid: {pageId}
                             - privateUrl: {privateUrl}
                             - publicUrl: {publicUrl}
-                            ---
-                            {markdownPageContent}
+                            -->
+                            {content}
                             """;
 
             _logger.LogInformation("Successfully retrieved page content for ID: {PageId}", pageId);
@@ -155,23 +154,10 @@ public class PageTool
         {
             // Get existing blocks
             var blockChildrenResponse = await _notionService.RetrieveBlockChildren(pageId);
-            if (blockChildrenResponse.IsSuccessStatusCode)
+            if (blockChildrenResponse.Results.Any())
             {
-                var blockContent = await blockChildrenResponse.Content.ReadAsStringAsync();
-                var blockResult = JsonDocument.Parse(blockContent);
                 
-                var blockIds = new List<string>();
-                if (blockResult.RootElement.TryGetProperty("results", out var results))
-                {
-                    foreach (var block in results.EnumerateArray())
-                    {
-                        if (block.TryGetProperty("id", out var blockId))
-                        {
-                            blockIds.Add(blockId.GetString()!);
-                        }
-                    }
-                }
-
+                var blockIds = blockChildrenResponse.Results.Select(x => x.Id).ToList();
                 await _notionService.DeleteBlocks(blockIds);
             }
         
@@ -184,48 +170,6 @@ public class PageTool
         {
             _logger.LogError(ex, "Exception occurred while updating Notion page content: {Message}", ex.Message);
             return $"Exception occurred while updating Notion page content: {ex.Message}";
-        }
-    }
-
-    private async Task GetPageMDContent(string blockId, StringBuilder markdownPageContent, int level = 0)
-    {
-        var contentResponse = await _notionService.RetrieveBlockChildren(blockId);
-
-        if (!contentResponse.IsSuccessStatusCode)
-        {
-            var errorContent = await contentResponse.Content.ReadAsStringAsync();
-            var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-
-            _logger.LogError("Error retrieving Notion page content: {StatusCode} with message: {Message}",
-                contentResponse.StatusCode, detailedError);
-            throw new Exception($"Error retrieving Notion page content: {contentResponse.StatusCode}\nDetails: {detailedError}");
-        }
-
-        var contentResponseContent = await contentResponse.Content.ReadAsStringAsync();
-            
-        var blockResult = JsonDocument.Parse(contentResponseContent);
-            
-        if (blockResult.RootElement.TryGetProperty("results", out var results))
-        {
-            foreach (var block in results.EnumerateArray())
-            {
-                var markdown = NotionToMarkdownConverter.ConvertToMarkdown(block, level);
-                markdownPageContent.AppendLine(markdown);
-                
-                var hasChildren = false;
-                if (block.TryGetProperty("has_children", out var hasChildrenProp))
-                {
-                    hasChildren = hasChildrenProp.GetBoolean();
-                }
-
-                if (!hasChildren)
-                {
-                    continue;
-                }
-
-                var parentBlockId = block.GetProperty("id").GetString()!;
-                await GetPageMDContent(parentBlockId, markdownPageContent, level + 1);
-            }
         }
     }
 }

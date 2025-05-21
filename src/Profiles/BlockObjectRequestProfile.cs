@@ -284,7 +284,7 @@ public class MdToBlockObjectRequestProfile : Profile
         var items = context.Items["AllBlocks"] as List<IBlockObjectRequest>;
         if (!src.IsOrdered)
         {
-            var (richTextBases, listBlock) = NotionBlockProfile.GenerateChildren(src, context, items!);
+            var (richTextBases, listBlock) = MdToNotionBlockProfile.GenerateChildren(src, context, items!);
 
             if (listBlock != null)
             {
@@ -305,7 +305,7 @@ public class MdToBlockObjectRequestProfile : Profile
         }
         else
         {
-            var (richTextBases, listBlock) = NotionBlockProfile.GenerateChildren(src, context, items!);
+            var (richTextBases, listBlock) = MdToNotionBlockProfile.GenerateChildren(src, context, items!);
 
             if (listBlock != null)
             {
@@ -335,16 +335,32 @@ public class MdToBlockObjectRequestProfile : Profile
         switch (lastItem)
         {
             case ParagraphBlockRequest lastItemParagraphBlock:
-                lastItemParagraphBlock.Paragraph.Children = children as IEnumerable<INonColumnBlockRequest>;
+                lastItemParagraphBlock.Paragraph.Children ??= new List<INonColumnBlockRequest>();
+                foreach(var child in (children as IEnumerable<INonColumnBlockRequest>)!)
+                {
+                    lastItemParagraphBlock.Paragraph.Children = lastItemParagraphBlock.Paragraph.Children.Append(child);
+                }
                 break;
             case BulletedListItemBlockRequest lastItemBulletedListItemBlock:
-                lastItemBulletedListItemBlock.BulletedListItem.Children = children as IEnumerable<BulletedListItemBlockRequest>;
+                lastItemBulletedListItemBlock.BulletedListItem.Children ??= new List<INonColumnBlockRequest>();
+                foreach(var child in (children as IEnumerable<INonColumnBlockRequest>)!)
+                {
+                    lastItemBulletedListItemBlock.BulletedListItem.Children = lastItemBulletedListItemBlock.BulletedListItem.Children.Append(child);
+                }
                 break;
             case NumberedListItemBlockRequest lastItemNumberedListItemBlock:
-                lastItemNumberedListItemBlock.NumberedListItem.Children = children as IEnumerable<INonColumnBlockRequest>;
+                lastItemNumberedListItemBlock.NumberedListItem.Children ??= new List<INonColumnBlockRequest>();
+                foreach(var child in (children as IEnumerable<INonColumnBlockRequest>)!)
+                {
+                    lastItemNumberedListItemBlock.NumberedListItem.Children = lastItemNumberedListItemBlock.NumberedListItem.Children.Append(child);
+                }
                 break;
             case QuoteBlockRequest lastItemQuoteBlock:
-                lastItemQuoteBlock.Quote.Children = children as IEnumerable<INonColumnBlockRequest>;
+                lastItemQuoteBlock.Quote.Children ??= new List<INonColumnBlockRequest>();
+                foreach(var child in (children as IEnumerable<INonColumnBlockRequest>)!)
+                {
+                    lastItemQuoteBlock.Quote.Children = lastItemQuoteBlock.Quote.Children.Append(child);
+                }
                 break;
             default:
                 var insertChidlren = children as IEnumerable<IBlockObjectRequest>;
