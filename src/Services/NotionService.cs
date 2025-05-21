@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using AutoMapper;
 using Markdig;
 using Markdig.Renderers.Normalize;
@@ -19,12 +20,14 @@ public interface INotionService
     Task<HttpResponseMessage> Search(string query);
     Task<Page> CreatePage(string parentId, string title, string content);
     Task<Page> RetrievePage(string pageId);
-    Task<HttpResponseMessage> RetrieveBlockChildren(string blockId);
+    Task<RetrieveChildrenResponse> RetrieveBlockChildren(string blockId);
     Task<HttpResponseMessage> UpdatePage(string pageId, string title);
     Task<HttpResponseMessage> UpdateBlock(string blockId, string content);
     Task<HttpResponseMessage> DeleteBlock(string blockId);
     Task DeleteBlocks(List<string> blockIds);
     Task<AppendChildrenResponse> AppendBlockChildren(string blockId, string content, string? after = null);
+    Task GetPageContent(string blockId, StringBuilder markdownPageContent);
+    Task<string> GetPageContent(string blockId);
 }
 
 public class NotionPageUpdateRequest
@@ -103,9 +106,12 @@ public class NotionService : INotionService
         return await _client.Pages.RetrieveAsync(pageId);
     }
 
-    public async Task<HttpResponseMessage> RetrieveBlockChildren(string blockId)
+    public async Task<RetrieveChildrenResponse> RetrieveBlockChildren(string blockId)
     {
-        return await _httpclient.GetAsync($"blocks/{blockId}/children");
+        return await _client.Blocks.RetrieveChildrenAsync(new BlockRetrieveChildrenRequest
+        {
+            BlockId = blockId
+        });
     }
 
     public async Task<HttpResponseMessage> UpdatePage(string pageId, string title)
@@ -198,18 +204,112 @@ public class NotionService : INotionService
         return blocks;
     }
 
+    public string NotionToHtml(List<IBlock> blocks)
+    {
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var markdown = _mapper.Map<MarkdownDocument>(blocks, opt =>
+        {
+            opt.Items["AllBlocks"] = new MarkdownDocument();
+            opt.Items["Parent"] = null;
+        });
+
+        return markdown.ToHtml(pipeline);
+    }
+    
     public string NotionToMarkdown(List<IBlock> blocks)
     {
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-        var markdown = _mapper.Map<MarkdownDocument>(blocks, opt => opt.Items["AllBlocks"] = new MarkdownDocument());
+        var markdown = _mapper.Map<MarkdownDocument>(blocks, opt =>
+        {
+            opt.Items["AllBlocks"] = new MarkdownDocument();
+            opt.Items["Parent"] = null;
+        });
         
         var writer = new StringWriter();
         var renderer = new NormalizeRenderer(writer);
+        renderer.ObjectRenderers.Add(new TableRenderer());
         pipeline.Setup(renderer);
-        
+
         renderer.Render(markdown);
+        writer.Flush();
         
         return writer.ToString();
+    }
+
+    public async Task GetPageContent(string blockId, StringBuilder markdownPageContent)
+    {
+        var contentResponse = await RetrieveBlockChildren(blockId);
+
+        if (contentResponse.Results.Any())
+        {
+            foreach (var block in contentResponse.Results)
+            {
+                var markdown = NotionToHtml(new List<IBlock>{block});
+                markdownPageContent.AppendLine(markdown);
+                
+                var hasChildren = block.HasChildren;
+
+                if (!hasChildren)
+                {
+                    continue;
+                }
+
+                await GetPageContent(block.Id, markdownPageContent);
+            }
+        }
+    }
+
+
+    public async Task<string> GetPageContent(string blockId)
+    {
+        var notionBlocks = new List<IBlock>();
+        await GetPageContent(blockId, notionBlocks);
+
+        return NotionToMarkdown(notionBlocks);
+    }
+    
+    private async Task GetPageContent(string blockId, List<IBlock> blocks, bool isChild = false)
+    {
+        var contentResponse = await RetrieveBlockChildren(blockId);
+
+        if (contentResponse.Results.Any())
+        {
+            foreach (var block in contentResponse.Results)
+            {
+                if (isChild)
+                {
+                    var lastBlock = blocks.Last();
+                    AddChildren(lastBlock, block);
+                }
+                else
+                {
+                    blocks.Add(block);
+                }
+                
+                var hasChildren = block.HasChildren;
+
+                if (!hasChildren)
+                {
+                    continue;
+                }
+
+                await GetPageContent(block.Id, blocks, true);
+            }
+        }
+    }
+
+    private void AddChildren(IBlock parent, IBlock child)
+    {
+        switch (parent)
+        {
+            case TableBlock tableBlock:
+                if(tableBlock.Table.Children == null)
+                {
+                    tableBlock.Table.Children = new List<TableRowBlock>();
+                }
+                tableBlock.Table.Children = tableBlock.Table.Children.Append(child as TableRowBlock);
+                break;
+        }
     }
 
     

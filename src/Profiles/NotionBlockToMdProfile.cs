@@ -67,7 +67,11 @@ public class NotionBlockToMdProfile : Profile
                     foreach (var child in src.Paragraph.Children)
                     {
                         var childMarkdownBlock = context.Mapper.Map<Markdig.Syntax.Block>(child);
-                        
+
+                        if (childMarkdownBlock == null)
+                        {
+                            continue;
+                        }
                         items!.Add(childMarkdownBlock);
                     }
                 }
@@ -90,17 +94,36 @@ public class NotionBlockToMdProfile : Profile
         
         // Bulleted list mapping
         CreateMap<BulletedListBlock, MarkdownObject>()
-            .ConvertUsing((src, _, context) => null);
+            .ConvertUsing((src, _, context) => 
+                new ListBlock(new ListBlockParser())
+                {
+                    IsOrdered = false,
+                    BulletType = '-'
+                });
         CreateMap<BulletedListItemBlock, MarkdownObject>()
             .ConvertUsing((src, _, context) =>
             {
                 var items = context.Items["AllBlocks"] as MarkdownDocument;
-                var hasChildren = false;
-                var listBlock = new ListBlock(new ListBlockParser())
+                var parent = context.Items["Parent"] as ListItemBlock;
+                var listBlock = parent == null ? items!.Last() as ListBlock : parent.FirstOrDefault(x => x is ListBlock) as ListBlock;
+                
+                if (listBlock == null)
                 {
-                    IsOrdered = false,
-                    BulletType = '-'
-                };
+                    listBlock = new ListBlock(new ListBlockParser())
+                    {
+                        IsOrdered = false,
+                        BulletType = '-'
+                    };
+                    
+                    if(parent != null)
+                    {
+                        parent.Add(listBlock);
+                    }
+                    else
+                    {
+                        items!.Add(listBlock);
+                    }
+                }
 
                 var listItem = new ListItemBlock(new ListBlockParser())
                 {
@@ -128,40 +151,67 @@ public class NotionBlockToMdProfile : Profile
                 }
                 
                 // Handle children (nested list items)
-                hasChildren = src.BulletedListItem?.Children != null;
+                var hasChildren = src.BulletedListItem?.Children != null;
                 if (hasChildren)
                 {
-                    items!.Add(listBlock);
                     foreach (var child in src.BulletedListItem.Children)
                     {
                         // In a real scenario, this would need to handle nesting properly
+                        context.Items["Parent"] = parent ?? listBlock.Last(); 
                         var childMarkdownBlock = context.Mapper.Map<Markdig.Syntax.Block>(child);
+                        if (childMarkdownBlock == null)
+                        {
+                            continue;
+                        }
                         items!.Add(childMarkdownBlock);
                     }
                 }
-
-                if (!hasChildren) return listBlock;
-                
+                context.Items["Parent"] = null;
                 context.Items["AllBlocks"] = items;
                 return null;
             });
         
         // Numbered list mapping
+        CreateMap<NumberedListBlock, MarkdownObject>()
+            .ConvertUsing((src, _, context) => 
+                new ListBlock(new ListBlockParser())
+                {
+                    IsOrdered = true,
+                    OrderedStart = "1",
+                    OrderedDelimiter = '.',
+                    BulletType = '1'
+                });
         CreateMap<NumberedListItemBlock, MarkdownObject>()
             .ConvertUsing((src, _, context) =>
             {
                 var items = context.Items["AllBlocks"] as MarkdownDocument;
-                var hasChildren = false;
-                var listBlock = new ListBlock(new ListBlockParser())
-                {
-                    IsOrdered = true,
-                    OrderedStart = "1",
-                    OrderedDelimiter = '.'
-                };
+                var parent = context.Items["Parent"] as ListItemBlock;
+                var listBlock = parent == null ? items!.Last() as ListBlock : parent.FirstOrDefault(x => x is ListBlock) as ListBlock;
                 
+                if (listBlock == null)
+                {
+                    listBlock = new ListBlock(new ListBlockParser())
+                    {
+                        IsOrdered = true,
+                        OrderedStart = "1",
+                        OrderedDelimiter = '.',
+                        BulletType = '1'
+                    };
+                    
+                    if(parent != null)
+                    {
+                        parent.Add(listBlock);
+                    }
+                    else
+                    {
+                        items!.Add(listBlock);
+                    }
+                }
+
                 var listItem = new ListItemBlock(new ListBlockParser())
                 {
-                    Order = 1
+                    Order = 0,
+                    NewLine = NewLine.None
                 };
                 listBlock.Add(listItem);
                 
@@ -184,19 +234,22 @@ public class NotionBlockToMdProfile : Profile
                 }
                 
                 // Handle children (nested list items)
-                hasChildren = src.NumberedListItem?.Children != null;
+                var hasChildren = src.NumberedListItem?.Children != null;
                 if (hasChildren)
                 {
                     foreach (var child in src.NumberedListItem.Children)
                     {
                         // In a real scenario, this would need to handle nesting properly
+                        context.Items["Parent"] = parent ?? listBlock.Last(); 
                         var childMarkdownBlock = context.Mapper.Map<Markdig.Syntax.Block>(child);
+                        if (childMarkdownBlock == null)
+                        {
+                            continue;
+                        }
                         items!.Add(childMarkdownBlock);
                     }
                 }
-
-                if (!hasChildren) return listBlock;
-                
+                context.Items["Parent"] = null;
                 context.Items["AllBlocks"] = items;
                 return null;
             });
@@ -262,63 +315,63 @@ public class NotionBlockToMdProfile : Profile
         CreateMap<TableBlock, MarkdownObject>()
             .ConvertUsing((src, _, context) =>
             {
-                var table = new Table();
+                var table = new Table(new GridTableParser());
                 
-                // if (src.Table?.Children != null)
-                // {
-                //     bool isFirstRow = true;
-                //     foreach (var rowBlock in src.Table.Children)
-                //     {
-                //         if (rowBlock is TableRowBlock tableRowBlock)
-                //         {
-                //             var row = new TableRow();
-                //             
-                //             // Mark first row as header if HasColumnHeader is true
-                //             if (isFirstRow && src.Table.HasColumnHeader == true)
-                //             {
-                //                 row.IsHeader = true;
-                //             }
-                //             
-                //             if (tableRowBlock.TableRow?.Cells != null)
-                //             {
-                //                 foreach (var cellContent in tableRowBlock.TableRow.Cells)
-                //                 {
-                //                     var cell = new TableCell();
-                //                     
-                //                     // Create a paragraph for the cell content
-                //                     var paragraph = new ParagraphBlock();
-                //                     var inlineContainer = new ContainerInline();
-                //                     paragraph.Inline = inlineContainer;
-                //                     
-                //                     foreach (var richText in cellContent)
-                //                     {
-                //                         var inline = MapRichTextToInline(richText, context);
-                //                         if (inline != null)
-                //                         {
-                //                             inlineContainer.AppendChild(inline);
-                //                         }
-                //                     }
-                //                     
-                //                     cell.Add(paragraph);
-                //                     row.Add(cell);
-                //                 }
-                //             }
-                //             
-                //             table.Add(row);
-                //             isFirstRow = false;
-                //         }
-                //     }
-                // }
-                //
-                // // Set table column definitions
-                // if (src.Table?.TableWidth > 0)
-                // {
-                //     table.ColumnDefinitions = new List<TableColumnDefinition>();
-                //     for (int i = 0; i < src.Table.TableWidth; i++)
-                //     {
-                //         table.ColumnDefinitions.Add(new TableColumnDefinition());
-                //     }
-                // }
+                if (src.Table?.Children != null)
+                {
+                    bool isFirstRow = true;
+                    foreach (var rowBlock in src.Table.Children)
+                    {
+                        if (rowBlock is TableRowBlock tableRowBlock)
+                        {
+                            var row = new TableRow();
+                            
+                            // Mark first row as header if HasColumnHeader is true
+                            if (isFirstRow && src.Table.HasColumnHeader == true)
+                            {
+                                row.IsHeader = true;
+                            }
+                            
+                            if (tableRowBlock.TableRow?.Cells != null)
+                            {
+                                foreach (var cellContent in tableRowBlock.TableRow.Cells)
+                                {
+                                    var cell = new TableCell(new GridTableParser());
+                                    
+                                    // Create a paragraph for the cell content
+                                    var paragraph = new Markdig.Syntax.ParagraphBlock();
+                                    var inlineContainer = new ContainerInline();
+                                    paragraph.Inline = inlineContainer;
+                                    
+                                    foreach (var richText in cellContent)
+                                    {
+                                        var inline = MapRichTextToInline(richText, context);
+                                        if (inline != null)
+                                        {
+                                            inlineContainer.AppendChild(inline);
+                                        }
+                                    }
+                                    
+                                    cell.Add(paragraph);
+                                    row.Add(cell);
+                                }
+                            }
+                            
+                            table.Add(row);
+                            isFirstRow = false;
+                        }
+                    }
+                }
+                
+                // Set table column definitions
+                if (src.Table?.TableWidth > 0)
+                {
+                    table.ColumnDefinitions.AddRange(new List<TableColumnDefinition>());
+                    for (int i = 0; i <= src.Table.TableWidth; i++)
+                    {
+                        table.ColumnDefinitions.Add(new TableColumnDefinition());
+                    }
+                }
                 
                 return table;
             });
