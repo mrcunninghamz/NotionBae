@@ -263,10 +263,46 @@ public class NotionService : INotionService
 
     public async Task<string> GetPageContent(string blockId)
     {
-        var notionBlocks = new List<IBlock>();
-        await GetPageContent(blockId, notionBlocks);
+        var notionBlocks = await GetPageContentWithChildren(blockId);
 
         return NotionToMarkdown(notionBlocks);
+    }
+    
+    private async Task<List<IBlock>> GetPageContentWithChildren(string blockId)
+    {
+        var allBlocks = new List<IBlock>();
+        var blockQueue = new Queue<(string BlockId, bool IsChild, IBlock? ParentBlock)>();
+    
+        // Start with the root block
+        blockQueue.Enqueue((blockId, false, null));
+    
+        while (blockQueue.Count > 0)
+        {
+            var (currentBlockId, isChild, parentBlock) = blockQueue.Dequeue();
+            var childrenResponse = await RetrieveBlockChildren(currentBlockId);
+        
+            foreach (var block in childrenResponse.Results)
+            {
+                if (isChild && parentBlock != null)
+                {
+                    // Add as child to parent block
+                    AddChildren(parentBlock, block);
+                }
+                else
+                {
+                    // Add as top-level block
+                    allBlocks.Add(block);
+                }
+            
+                // If this block has children, add them to the queue
+                if (block.HasChildren)
+                {
+                    blockQueue.Enqueue((block.Id, true, block));
+                }
+            }
+        }
+        
+        return allBlocks;
     }
     
     private async Task GetPageContent(string blockId, List<IBlock> blocks, bool isChild = false)

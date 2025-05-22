@@ -108,7 +108,7 @@ public class NotionBlockToMdProfile : Profile
             {
                 var items = context.Items["AllBlocks"] as MarkdownDocument;
                 var parent = context.Items["Parent"] as ListItemBlock;
-                var listBlock = parent == null ? items!.Last() as ListBlock : parent.FirstOrDefault(x => x is ListBlock) as ListBlock;
+                var listBlock = parent == null ? items!.LastOrDefault() as ListBlock : parent.FirstOrDefault(x => x is ListBlock) as ListBlock;
                 
                 if (listBlock == null)
                 {
@@ -192,7 +192,7 @@ public class NotionBlockToMdProfile : Profile
             {
                 var items = context.Items["AllBlocks"] as MarkdownDocument;
                 var parent = context.Items["Parent"] as ListItemBlock;
-                var listBlock = parent == null ? items!.Last() as ListBlock : parent.FirstOrDefault(x => x is ListBlock) as ListBlock;
+                var listBlock = parent == null ? items!.LastOrDefault() as ListBlock : parent.FirstOrDefault(x => x is ListBlock) as ListBlock;
                 
                 if (listBlock == null)
                 {
@@ -261,6 +261,30 @@ public class NotionBlockToMdProfile : Profile
                 context.Items["Parent"] = null;
                 context.Items["AllBlocks"] = items;
                 return null;
+            });
+        
+        CreateMap<ImageBlock, MarkdownObject>()
+            .ConvertUsing((src, _, context) =>
+            {
+                var text = string.Empty;
+                switch (src.Image)
+                {
+                    case UploadedFile uploadedFile:
+                        text = $"![{uploadedFile.Caption}]({uploadedFile.File.Url} \"{uploadedFile.Name}\"))";
+                        break;
+                    case ExternalFile externalFile:
+                        text = $"![{externalFile.Caption}]({externalFile.External.Url} \"{externalFile.Name}\"))";
+                        break;
+                }
+                
+                
+                var imageBlock = new Markdig.Syntax.ParagraphBlock
+                {
+                    Inline = new ContainerInline()
+                        .AppendChild(new LiteralInline(text))
+                };
+                
+                return imageBlock;
             });
         
         // Quote block mapping
