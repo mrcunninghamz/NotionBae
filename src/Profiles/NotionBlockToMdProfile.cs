@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using System.Xml.Serialization;
+using AutoMapper;
 using Markdig.Extensions.Tables;
 using Markdig.Helpers;
 using Markdig.Parsers;
@@ -6,6 +7,8 @@ using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Notion.Client;
 using NotionBae.Utilities;
+using Block = Notion.Client.Block;
+using CodeBlock = Notion.Client.CodeBlock;
 using HeadingBlock = Markdig.Syntax.HeadingBlock;
 using IBlock = Notion.Client.IBlock;
 using ParagraphBlock = Notion.Client.ParagraphBlock;
@@ -27,7 +30,7 @@ public class NotionBlockToMdProfile : Profile
                     var markdownBlock = context.Mapper.Map<Markdig.Syntax.Block>(block);
                     if (markdownBlock != null)
                     {
-                        // document.Add(AddBlockIdComment(block.Id)); //come back to this.
+                        document.Add(AddBlockIdComment(block.Id)); //come back to this.
                         document.Add(markdownBlock);
                     }
                 }
@@ -71,6 +74,7 @@ public class NotionBlockToMdProfile : Profile
                         {
                             continue;
                         }
+                        items.Add(AddBlockIdComment(src.Id));
                         items!.Add(childMarkdownBlock);
                     }
                 }
@@ -132,6 +136,7 @@ public class NotionBlockToMdProfile : Profile
                 listBlock.Add(listItem);
                 
                 var paragraph = new Markdig.Syntax.ParagraphBlock();
+                listItem.Add(AddBlockIdComment(src.Id));
                 listItem.Add(paragraph);
                 
                 if (src.BulletedListItem?.RichText != null)
@@ -162,6 +167,8 @@ public class NotionBlockToMdProfile : Profile
                         {
                             continue;
                         }
+                        
+                        items.Add(AddBlockIdComment(child.Id));
                         items!.Add(childMarkdownBlock);
                     }
                 }
@@ -215,6 +222,7 @@ public class NotionBlockToMdProfile : Profile
                 listBlock.Add(listItem);
                 
                 var paragraph = new Markdig.Syntax.ParagraphBlock();
+                listItem.Add(AddBlockIdComment(src.Id));
                 listItem.Add(paragraph);
                 
                 if (src.NumberedListItem?.RichText != null)
@@ -245,6 +253,8 @@ public class NotionBlockToMdProfile : Profile
                         {
                             continue;
                         }
+                        
+                        items.Add(AddBlockIdComment(child.Id));
                         items!.Add(childMarkdownBlock);
                     }
                 }
