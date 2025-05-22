@@ -367,55 +367,51 @@ public class MdToNotionBlockProfile : Profile
 
         CreateMap<FootnoteGroup, Block>()
             .ConvertUsing((_, _, _) => null);
-
     }
     
     // Bulleted list mapping
+    void GenerateList<T>(ListBlock src, ResolutionContext context, List<Notion.Client.IBlock> items) where T : Block
+    {
+        var (richTextBases, listBlock) = GenerateChildren(src, context, items!);
+
+        var listItems = context.Mapper.Map<List<T>>(richTextBases);
+        if (listBlock != null)
+        {
+            if (src.Column > 0)
+            {
+                AddBlockChildren(
+                    items!,
+                    listItems
+                );
+            }
+            else
+            {
+                items.AddRange(listItems);
+            }
+                
+            context.Mapper.Map<T>(listBlock);
+            return;
+        }
+            
+        AddBlockChildren(
+            items!,
+            listItems
+        );
+            
+        context.Items["AllBlocks"] = items;
+    }
+    
     Block MappingListBlock(ListBlock src, Block _, ResolutionContext context)
     {
         // For bulleted list
         var items = context.Items["AllBlocks"] as List<Notion.Client.IBlock>;
         if (!src.IsOrdered)
         {
-            var (richTextBases, listBlock) = GenerateChildren(src, context, items!);
-
-            if (listBlock != null)
-            {
-                AddBlockChildren(
-                    items!,
-                    richTextBases.Select(richTexts => new BulletedListItemBlock {BulletedListItem = new BulletedListItemBlock.Info {RichText = richTexts, Color = Color.Default}}).ToList()
-                );
-                context.Mapper.Map<Block>(listBlock);
-                return null;
-            }
-            
-            AddBlockChildren(
-                items!,
-                richTextBases.Select(richTexts => new BulletedListItemBlock {BulletedListItem = new BulletedListItemBlock.Info {RichText = richTexts, Color = Color.Default}}).ToList()
-            );
-            
-            context.Items["AllBlocks"] = items;
+            GenerateList<BulletedListItemBlock>(src, context, items!);
         }
         else
         {
-            var (richTextBases, listBlock) = GenerateChildren(src, context, items!);
-
-            if (listBlock != null)
-            {
-                AddBlockChildren(
-                    items!,
-                    richTextBases.Select(richTexts => new NumberedListItemBlock {NumberedListItem = new NumberedListItemBlock.Info {RichText = richTexts, Color = Color.Default}}).ToList()
-                );
-                context.Mapper.Map<Block>(listBlock);
-                return null;
-            }
-            
-            AddBlockChildren(
-                items!,
-                richTextBases.Select(richTexts => new NumberedListItemBlock {NumberedListItem = new NumberedListItemBlock.Info {RichText = richTexts, Color = Color.Default}}).ToList()
-            );
-            
-            context.Items["AllBlocks"] = items;
+            GenerateList<NumberedListItemBlock>(src, context, items!);
         }
             
         // return nothing because we are adding as children to previous block.

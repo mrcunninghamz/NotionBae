@@ -69,11 +69,11 @@ public class PageTool
 
             // Combine metadata and content into a single response
             var markdownResponse = $"""
-                            <!--
+                            ---
                             - pageid: {pageId}
                             - privateUrl: {privateUrl}
                             - publicUrl: {publicUrl}
-                            -->
+                            ---
                             {content}
                             """;
 

@@ -6,8 +6,6 @@ using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Notion.Client;
 using NotionBae.Utilities;
-using Block = Notion.Client.Block;
-using CodeBlock = Notion.Client.CodeBlock;
 using HeadingBlock = Markdig.Syntax.HeadingBlock;
 using IBlock = Notion.Client.IBlock;
 using ParagraphBlock = Notion.Client.ParagraphBlock;
@@ -29,6 +27,7 @@ public class NotionBlockToMdProfile : Profile
                     var markdownBlock = context.Mapper.Map<Markdig.Syntax.Block>(block);
                     if (markdownBlock != null)
                     {
+                        // document.Add(AddBlockIdComment(block.Id)); //come back to this.
                         document.Add(markdownBlock);
                     }
                 }
@@ -400,6 +399,18 @@ public class NotionBlockToMdProfile : Profile
         }
         
         return headingBlock;
+    }
+    
+    private Markdig.Syntax.ParagraphBlock AddBlockIdComment(string blockId)
+    {
+        var comment = new LiteralInline($"[//]: # (BlockId: {blockId})");
+        return 
+            new Markdig.Syntax.ParagraphBlock
+            {
+                Inline = new ContainerInline()
+                    .AppendChild(new LiteralInline($"[//]: # (BlockId: {blockId})"))
+            };
+        
     }
     
     private Inline MapRichTextToInline(RichTextBase richText, ResolutionContext context)
