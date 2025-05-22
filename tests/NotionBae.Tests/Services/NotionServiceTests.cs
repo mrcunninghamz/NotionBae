@@ -9,7 +9,11 @@ using NotionBae.Utilities;
 using TestBae.BaseClasses.AutoFixture;
 using Xunit;
 using AutoFixture;
+using Markdig;
+using Markdig.Renderers.Normalize;
+using Markdig.Syntax;
 using Notion.Client;
+using ParagraphBlock = Notion.Client.ParagraphBlock;
 
 namespace NotionBae.Tests.Services;
 
@@ -125,11 +129,17 @@ Tables can look like this:
 | Go | Cloud Infrastructure | 2009 | Static |
 | Kotlin | Android Development | 2011 | Static |
 
-
-
-
 And note that you can backslash-escape any punctuation characters
 which you wish to be displayed literally, ex.: \`foo\`, \*bar\*, etc.
+
+### Test
+- Inventory core PR 🟢 **Completed**
+- Let DevOps know of the new API pipeline with Azure Function template (appId: 39312, primary/secondary regions) 🟢 **Completed**
+- Inventory API PR 🟢 **Completed**
+- Create enabler for DevOps to update APIM endpoints:
+  - INT: Point APIM to new front door location for integration environment ⌚ In progress
+  - CERT: Point APIM to new front door location for certification environment 🔵 Not started
+  - PROD: Point APIM to new front door location for production environment 🔵 Not started
 ";
     
     protected override void ConfigureFixture()
@@ -246,7 +256,16 @@ stme-dbo/39312/stme-dob-inventory-api
     {
         // Arrange
         var blocks = TestSubject.MarkdownToNotion(MD_CONTENT);
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var markdown = Markdown.Parse(MD_CONTENT, pipeline);
         
+        var mappedMarkdown = Mapper.Map<MarkdownDocument>(blocks, opt =>
+        {
+            opt.Items["AllBlocks"] = new MarkdownDocument();
+            opt.Items["Parent"] = null;
+        });
+
+        var expected = mappedMarkdown.ToHtml(pipeline); 
         // Act
         var result = TestSubject.NotionToMarkdown(blocks);
         
@@ -333,4 +352,64 @@ stme-dbo/39312/stme-dob-inventory-api
         Assert.Equal(6, blocks.Count);
         Assert.Equal(3, (blocks.Last() as BulletedListItemBlock)!.BulletedListItem.Children.Count());
     }
+
+    [Fact]
+    public async Task NestedBullets()
+    {
+        // arrange
+        // TODO: only works when list comes after a header
+        var content = @"## Create Multiple Inventory Repositories per App
+
+### TODO List
+Now a nested list:
+- Inventory core PR 🟢 Completed
+- Let DevOps know of the new API pipeline with Azure Function template (appId: 39312, primary/secondary regions) 🟢 Completed
+- Inventory API PR 🟢 Completed
+- Create enabler for DevOps to update APIM endpoints:
+  - INT: Point APIM to new front door location for integration environment ⌚ In progress
+  - CERT: Point APIM to new front door location for certification environment 🔵 Not started
+  - PROD: Point APIM to new front door location for production environment 🔵 Not started
+
+### TODO List
+1. Inventory core PR 🟢 Completed
+2. Let DevOps know of the new API pipeline with Azure Function template (appId: 39312, primary/secondary regions) 🟢 Completed
+3. Inventory API PR 🟢 Completed
+4. Create enabler for DevOps to update APIM endpoints:
+  - INT: Point APIM to new front door location for integration environment ⌚ In progress
+  - CERT: Point APIM to new front door location for certification environment 🔵 Not started
+  - PROD: Point APIM to new front door location for production environment 🔵 Not started
+";
+        
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var documents = Markdown.Parse(content , pipeline);
+        
+        var blocks = TestSubject.MarkdownToNotion(content);
+        var appendBlocks = TestSubject.MarkdownToNotionAppend(content);
+
+        var blocksWithIds = blocks.Select(x =>
+        {
+            x.Id = Guid.NewGuid().ToString();
+            return x;
+        }).ToList();
+        
+        // act
+        
+        var markdown = TestSubject.NotionToMarkdown(blocksWithIds);
+        
+        // assert
+        
+        Assert.NotEmpty(appendBlocks);
+        Assert.Equal(12, appendBlocks.Count);
+        Assert.Equal(3, (appendBlocks.Last() as NumberedListItemBlockRequest)!.NumberedListItem.Children.Count());
+        
+        Assert.NotEmpty(blocks);
+        Assert.Equal(12, blocks.Count);
+        Assert.Equal(3, (blocks.Last() as NumberedListItemBlock)!.NumberedListItem.Children.Count());
+
+        Assert.IsType<ParagraphBlock>(blocks[2]);
+        Assert.IsType<BulletedListItemBlock>(blocks[3]);
+        
+    }
+    
+    //TODO create a test that represents actual notion blocks classes for nested bullets as it doesn't seem to be properly mapping as nested bullets don't actually show up
 }
