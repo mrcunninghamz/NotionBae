@@ -228,6 +228,7 @@ public class NotionService : INotionService
         var writer = new StringWriter();
         var renderer = new NormalizeRenderer(writer);
         renderer.ObjectRenderers.Add(new TableRenderer());
+        renderer.CompactParagraph = true;
         pipeline.Setup(renderer);
 
         renderer.Render(markdown);
