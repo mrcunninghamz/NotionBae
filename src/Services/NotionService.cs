@@ -310,8 +310,19 @@ public class NotionService : INotionService
                 }
                 tableBlock.Table.Children = tableBlock.Table.Children.Append(child as TableRowBlock);
                 break;
-            case ListBlock listBlock:
-                listBlock = (ListBlock)listBlock.Append(child as ListBlock);
+            case BulletedListItemBlock bulletedListItemBlock:
+                if(bulletedListItemBlock.BulletedListItem.Children == null)
+                {
+                    bulletedListItemBlock.BulletedListItem.Children = new List<BulletedListItemBlock>();
+                }
+                bulletedListItemBlock.BulletedListItem.Children = bulletedListItemBlock.BulletedListItem.Children.Append(child as BulletedListItemBlock);
+                break;
+            case NumberedListItemBlock numberedListItemBlock:
+                if(numberedListItemBlock.NumberedListItem.Children == null)
+                {
+                    numberedListItemBlock.NumberedListItem.Children = new List<NumberedListItemBlock>();
+                }
+                numberedListItemBlock.NumberedListItem.Children = numberedListItemBlock.NumberedListItem.Children.Append(child as NumberedListItemBlock);
                 break;
         }
     }
