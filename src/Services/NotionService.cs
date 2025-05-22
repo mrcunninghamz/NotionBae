@@ -11,7 +11,7 @@ using NotionBae.Utilities;
 using Block = Notion.Client.Block;
 using CodeBlock = Markdig.Syntax.CodeBlock;
 using IBlock = Notion.Client.IBlock;
-using ParagraphBlock = NotionBae.Utilities.ParagraphBlock;
+using ParagraphBlock = Notion.Client.ParagraphBlock;
 
 namespace NotionBae.Services;
 
@@ -299,6 +299,7 @@ public class NotionService : INotionService
         }
     }
 
+    //TODO: probably fingure out what else has children and make sure we pull them in here.
     private void AddChildren(IBlock parent, IBlock child)
     {
         switch (parent)
@@ -315,15 +316,23 @@ public class NotionService : INotionService
                 {
                     bulletedListItemBlock.BulletedListItem.Children = new List<BulletedListItemBlock>();
                 }
-                bulletedListItemBlock.BulletedListItem.Children = bulletedListItemBlock.BulletedListItem.Children.Append(child as BulletedListItemBlock);
+                bulletedListItemBlock.BulletedListItem.Children = bulletedListItemBlock.BulletedListItem.Children.Append(child as INonColumnBlock);
                 break;
             case NumberedListItemBlock numberedListItemBlock:
                 if(numberedListItemBlock.NumberedListItem.Children == null)
                 {
                     numberedListItemBlock.NumberedListItem.Children = new List<NumberedListItemBlock>();
                 }
-                numberedListItemBlock.NumberedListItem.Children = numberedListItemBlock.NumberedListItem.Children.Append(child as NumberedListItemBlock);
+                numberedListItemBlock.NumberedListItem.Children = numberedListItemBlock.NumberedListItem.Children.Append(child as INonColumnBlock);
                 break;
+            case ParagraphBlock paragraphBlock:
+                if(paragraphBlock.Paragraph.Children == null)
+                {
+                    paragraphBlock.Paragraph.Children = new List<ParagraphBlock>();
+                }
+                paragraphBlock.Paragraph.Children = paragraphBlock.Paragraph.Children.Append(child as INonColumnBlock);
+                break;
+                
         }
     }
 
