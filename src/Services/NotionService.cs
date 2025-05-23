@@ -1,5 +1,4 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using AutoMapper;
 using Markdig;
 using Markdig.Renderers.Normalize;
@@ -9,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using Notion.Client;
 using NotionBae.Utilities;
 using Block = Notion.Client.Block;
-using CodeBlock = Markdig.Syntax.CodeBlock;
 using IBlock = Notion.Client.IBlock;
 using ParagraphBlock = Notion.Client.ParagraphBlock;
 
@@ -26,7 +24,6 @@ public interface INotionService
     Task<HttpResponseMessage> DeleteBlock(string blockId);
     Task DeleteBlocks(List<string> blockIds);
     Task<AppendChildrenResponse> AppendBlockChildren(string blockId, string content, string? after = null);
-    Task GetPageContent(string blockId, StringBuilder markdownPageContent);
     Task<string> GetPageContent(string blockId);
 }
 
@@ -184,7 +181,11 @@ public class NotionService : INotionService
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var documents = Markdown.Parse(content, pipeline);
         
-        var blocks = _mapper.Map<List<IBlock>>(documents, opt => opt.Items["AllBlocks"] = new List<Block>());
+        var blocks = _mapper.Map<List<IBlock>>(documents, opt => 
+        {
+            opt.Items["AllBlocks"] = new List<BlockObjectRequest>();
+            opt.Items["Parent"] = null;
+        });
 
         return blocks;
     }
@@ -197,7 +198,7 @@ public class NotionService : INotionService
         var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt =>
             {
                 opt.Items["AllBlocks"] = new List<BlockObjectRequest>();
-                opt.Items["ParentBlock"] = null;
+                opt.Items["Parent"] = null;
             }
         );
 
@@ -236,31 +237,7 @@ public class NotionService : INotionService
         
         return writer.ToString();
     }
-
-    public async Task GetPageContent(string blockId, StringBuilder markdownPageContent)
-    {
-        var contentResponse = await RetrieveBlockChildren(blockId);
-
-        if (contentResponse.Results.Any())
-        {
-            foreach (var block in contentResponse.Results)
-            {
-                var markdown = NotionToHtml(new List<IBlock>{block});
-                markdownPageContent.AppendLine(markdown);
-                
-                var hasChildren = block.HasChildren;
-
-                if (!hasChildren)
-                {
-                    continue;
-                }
-
-                await GetPageContent(block.Id, markdownPageContent);
-            }
-        }
-    }
-
-
+    
     public async Task<string> GetPageContent(string blockId)
     {
         var notionBlocks = await GetPageContentWithChildren(blockId);
@@ -271,19 +248,19 @@ public class NotionService : INotionService
     private async Task<List<IBlock>> GetPageContentWithChildren(string blockId)
     {
         var allBlocks = new List<IBlock>();
-        var blockQueue = new Queue<(string BlockId, bool IsChild, IBlock? ParentBlock)>();
+        var blockQueue = new Queue<(string BlockId, IBlock? ParentBlock)>();
     
         // Start with the root block
-        blockQueue.Enqueue((blockId, false, null));
+        blockQueue.Enqueue((blockId, null));
     
         while (blockQueue.Count > 0)
         {
-            var (currentBlockId, isChild, parentBlock) = blockQueue.Dequeue();
+            var (currentBlockId, parentBlock) = blockQueue.Dequeue();
             var childrenResponse = await RetrieveBlockChildren(currentBlockId);
         
             foreach (var block in childrenResponse.Results)
             {
-                if (isChild && parentBlock != null)
+                if (parentBlock != null)
                 {
                     // Add as child to parent block
                     AddChildren(parentBlock, block);
@@ -297,7 +274,7 @@ public class NotionService : INotionService
                 // If this block has children, add them to the queue
                 if (block.HasChildren)
                 {
-                    blockQueue.Enqueue((block.Id, true, block));
+                    blockQueue.Enqueue((block.Id, block));
                 }
             }
         }
@@ -305,36 +282,6 @@ public class NotionService : INotionService
         return allBlocks;
     }
     
-    private async Task GetPageContent(string blockId, List<IBlock> blocks, bool isChild = false)
-    {
-        var contentResponse = await RetrieveBlockChildren(blockId);
-
-        if (contentResponse.Results.Any())
-        {
-            foreach (var block in contentResponse.Results)
-            {
-                if (isChild)
-                {
-                    var lastBlock = blocks.Last();
-                    AddChildren(lastBlock, block);
-                }
-                else
-                {
-                    blocks.Add(block);
-                }
-                
-                var hasChildren = block.HasChildren;
-
-                if (!hasChildren)
-                {
-                    continue;
-                }
-
-                await GetPageContent(block.Id, blocks, true);
-            }
-        }
-    }
-
     //TODO: probably fingure out what else has children and make sure we pull them in here.
     private void AddChildren(IBlock parent, IBlock child)
     {
