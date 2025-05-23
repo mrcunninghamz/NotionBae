@@ -381,12 +381,16 @@ public class MdToNotionBlockProfile : Profile
             {
                 AddBlockChildren(
                     items!,
-                    listItems
+                    listItems, 
+                    context.Items["Parent"]! as Block
                 );
+                
+                context.Items["Parent"] = listItems.Last();
             }
             else
             {
                 items.AddRange(listItems);
+                context.Items["Parent"] = listItems.Last();
             }
                 
             context.Mapper.Map<T>(listBlock);
@@ -395,7 +399,8 @@ public class MdToNotionBlockProfile : Profile
             
         AddBlockChildren(
             items!,
-            listItems
+            listItems,
+            context.Items["Parent"] as Block
         );
             
         context.Items["AllBlocks"] = items;
@@ -417,12 +422,13 @@ public class MdToNotionBlockProfile : Profile
         // return nothing because we are adding as children to previous block.
         return null;
     }
-    public static (List<List<RichTextBase>> richTextBases, ListBlock? listBlock) GenerateChildren<T>(ListBlock src, ResolutionContext context, List<T> items) where T : IObject
+    public static (List<List<RichTextBase>> richTextBases, ContainerBlock? listBlock) GenerateChildren<T>(ContainerBlock src, ResolutionContext context, List<T> items) where T : IObject
     {
+        //TODO: maybe this needs to be enqueue? the return in the containerblock messes things up.
         var richTextResponse = new List<List<RichTextBase>>();
         foreach (var markDigBlock in src)
         {
-            if (markDigBlock is ListItemBlock listItem)
+            if (markDigBlock is ContainerBlock listItem)
             {
                 var richTexts = new List<RichTextBase>();
             
@@ -439,7 +445,7 @@ public class MdToNotionBlockProfile : Profile
                             }
                         }
                     }
-                    else if (block is ListBlock listBlock)
+                    else if (block is ContainerBlock listBlock)
                     {
                         richTextResponse.Add(richTexts);
                         return (richTextResponse, listBlock);
@@ -453,10 +459,9 @@ public class MdToNotionBlockProfile : Profile
         return (richTextResponse, null);
     }
 
-    private void AddBlockChildren<T>(List<IBlock> items, List<T> children) where T : Block
+    private void AddBlockChildren<T>(List<IBlock> items, List<T> children, Block? parent) where T : Block
     {
-        var lastItem = items.Last();
-        switch (lastItem)
+        switch (parent)
         {
             case Notion.Client.ParagraphBlock lastItemParagraphBlock:
                 lastItemParagraphBlock.Paragraph.Children ??= new List<INonColumnBlock>();

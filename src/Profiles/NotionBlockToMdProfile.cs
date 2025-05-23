@@ -108,7 +108,7 @@ public class NotionBlockToMdProfile : Profile
             {
                 var items = context.Items["AllBlocks"] as MarkdownDocument;
                 var parent = context.Items["Parent"] as ListItemBlock;
-                var listBlock = parent == null ? items!.LastOrDefault() as ListBlock : parent.FirstOrDefault(x => x is ListBlock) as ListBlock;
+                var listBlock = parent == null ? items!.LastOrDefault() as ListBlock : parent.LastOrDefault(x => x is ContainerBlock) as ContainerBlock;
                 
                 if (listBlock == null)
                 {
@@ -161,7 +161,7 @@ public class NotionBlockToMdProfile : Profile
                     foreach (var child in src.BulletedListItem.Children)
                     {
                         // In a real scenario, this would need to handle nesting properly
-                        context.Items["Parent"] = parent ?? listBlock.Last(); 
+                        context.Items["Parent"] = listBlock.Last() as ContainerBlock; 
                         var childMarkdownBlock = context.Mapper.Map<Markdig.Syntax.Block>(child);
                         if (childMarkdownBlock == null)
                         {
@@ -192,7 +192,7 @@ public class NotionBlockToMdProfile : Profile
             {
                 var items = context.Items["AllBlocks"] as MarkdownDocument;
                 var parent = context.Items["Parent"] as ListItemBlock;
-                var listBlock = parent == null ? items!.LastOrDefault() as ListBlock : parent.FirstOrDefault(x => x is ListBlock) as ListBlock;
+                var listBlock = parent == null ? items!.LastOrDefault() as ListBlock : parent.FirstOrDefault(x => x is ContainerBlock) as ContainerBlock;
                 
                 if (listBlock == null)
                 {
@@ -247,7 +247,7 @@ public class NotionBlockToMdProfile : Profile
                     foreach (var child in src.NumberedListItem.Children)
                     {
                         // In a real scenario, this would need to handle nesting properly
-                        context.Items["Parent"] = parent ?? listBlock.Last(); 
+                        context.Items["Parent"] = listBlock.Last() as ContainerBlock; 
                         var childMarkdownBlock = context.Mapper.Map<Markdig.Syntax.Block>(child);
                         if (childMarkdownBlock == null)
                         {
@@ -442,7 +442,7 @@ public class NotionBlockToMdProfile : Profile
             new Markdig.Syntax.ParagraphBlock
             {
                 Inline = new ContainerInline()
-                    .AppendChild(new LiteralInline($"[//]: # (BlockId: {blockId})"))
+                    .AppendChild(comment)
             };
         
     }

@@ -354,30 +354,20 @@ stme-dbo/39312/stme-dob-inventory-api
     }
 
     [Fact]
-    public async Task NestedBullets()
+    public async Task NotionToMarkdown_NestedBullets_CreateProperMarkdown()
     {
         // arrange
         // TODO: only works when list comes after a header
         var content = @"## Create Multiple Inventory Repositories per App
 
 ### TODO List
-Now a nested list:
-- Inventory core PR 🟢 Completed
-- Let DevOps know of the new API pipeline with Azure Function template (appId: 39312, primary/secondary regions) 🟢 Completed
 - Inventory API PR 🟢 Completed
-- Create enabler for DevOps to update APIM endpoints:
-  - INT: Point APIM to new front door location for integration environment ⌚ In progress
-  - CERT: Point APIM to new front door location for certification environment 🔵 Not started
-  - PROD: Point APIM to new front door location for production environment 🔵 Not started
-
-### TODO List
-1. Inventory core PR 🟢 Completed
-2. Let DevOps know of the new API pipeline with Azure Function template (appId: 39312, primary/secondary regions) 🟢 Completed
-3. Inventory API PR 🟢 Completed
-4. Create enabler for DevOps to update APIM endpoints:
-  - INT: Point APIM to new front door location for integration environment ⌚ In progress
-  - CERT: Point APIM to new front door location for certification environment 🔵 Not started
-  - PROD: Point APIM to new front door location for production environment 🔵 Not started
+  - Create enabler for DevOps to update APIM endpoints:
+    - INT: Point APIM to new front door location for integration environment ⌚ In progress
+    - CERT: Point APIM to new front door location for certification environment 🔵 Not started
+    - PROD: Point APIM to new front door location for production environment 🔵 Not started
+  - wow
+- break this:
 ";
         
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
