@@ -331,10 +331,12 @@ stme-dbo/39312/stme-dob-inventory-api
 - Inventory core PR 🟢 Completed
 - Let DevOps know of the new API pipeline with Azure Function template (appId: 39312, primary/secondary regions) 🟢 Completed
 - Inventory API PR 🟢 Completed
-- Create enabler for DevOps to update APIM endpoints:
-  - INT: Point APIM to new front door location for integration environment ⌚ In progress
-  - CERT: Point APIM to new front door location for certification environment 🔵 Not started
-  - PROD: Point APIM to new front door location for production environment 🔵 Not started
+    - Create enabler for DevOps to update APIM endpoints:
+      - INT: Point APIM to new front door location for integration environment ⌚ In progress
+      - CERT: Point APIM to new front door location for certification environment 🔵 Not started
+      - PROD: Point APIM to new front door location for production environment 🔵 Not started
+    - wow
+- break this:
 
 ";
         
@@ -368,7 +370,24 @@ stme-dbo/39312/stme-dob-inventory-api
     - PROD: Point APIM to new front door location for production environment 🔵 Not started
   - wow
 - break this:
+
+1. Inventory API PR 🟢 Completed
+    1. Create enabler for DevOps to update APIM endpoints:
+        1. INT: Point APIM to new front door location for integration environment ⌚ In progress
+        2. CERT: Point APIM to new front door location for certification environment 🔵 Not started
+        3. PROD: Point APIM to new front door location for production environment 🔵 Not started
+    2. wow
+2. break this:
+
+1. Inventory API PR 🟢 Completed
+  1. Create enabler for DevOps to update APIM endpoints:
+    1. INT: Point APIM to new front door location for integration environment ⌚ In progress
+    2. CERT: Point APIM to new front door location for certification environment 🔵 Not started
+    3. PROD: Point APIM to new front door location for production environment 🔵 Not started
+  2. wow
+2. break this:
 ";
+        //TODO: something wierd when numberblock isn't tabbed but its even a problem in the parser itself.
         
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var documents = Markdown.Parse(content , pipeline);
