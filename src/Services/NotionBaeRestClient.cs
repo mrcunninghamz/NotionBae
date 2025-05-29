@@ -10,7 +10,7 @@ using Notion.Client;
 namespace NotionBae.Services;
 
 /// <summary>
-/// Stole all this crap from the Notion.Client library because they strongly coupled the httpclient which is not good.
+/// Stole all this crap from the Notion.Client library because they strongly coupled the httpclient which is not ideal for my needs.
 /// </summary>
 public class NotionBaeRestClient : IRestClient
 {
