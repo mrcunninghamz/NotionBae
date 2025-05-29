@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using System.Collections;
+using AutoMapper;
 using Markdig.Extensions.Footnotes;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
@@ -12,9 +13,9 @@ using QuoteBlock = Markdig.Syntax.QuoteBlock;
 
 namespace NotionBae.Profiles;
 
-public class NotionBlockProfile : Profile
+public class MdToNotionBlockProfile : Profile
 {
-    public NotionBlockProfile()
+    public MdToNotionBlockProfile()
     {
         // Map from Markdig MarkdownDocument to a list of Notion Blocks
         CreateMap<MarkdownDocument, List<IBlock>>()
@@ -366,119 +367,111 @@ public class NotionBlockProfile : Profile
 
         CreateMap<FootnoteGroup, Block>()
             .ConvertUsing((_, _, _) => null);
-
     }
     
-    // Bulleted list mapping
     Block MappingListBlock(ListBlock src, Block _, ResolutionContext context)
     {
         // For bulleted list
         var items = context.Items["AllBlocks"] as List<Notion.Client.IBlock>;
         if (!src.IsOrdered)
         {
-            var (richTextBases, listBlock) = GenerateChildren(src, context, items!);
-
-            if (listBlock != null)
-            {
-                AddBlockChildren(
-                    items!,
-                    richTextBases.Select(richTexts => new BulletedListItemBlock {BulletedListItem = new BulletedListItemBlock.Info {RichText = richTexts, Color = Color.Default}}).ToList()
-                );
-                context.Mapper.Map<Block>(listBlock);
-                return null;
-            }
-            
-            AddBlockChildren(
-                items!,
-                richTextBases.Select(richTexts => new BulletedListItemBlock {BulletedListItem = new BulletedListItemBlock.Info {RichText = richTexts, Color = Color.Default}}).ToList()
-            );
-            
-            context.Items["AllBlocks"] = items;
+            var newItems = GenerateList<BulletedListItemBlock>(src, context);
+            items.AddRange(newItems);
         }
         else
         {
-            var (richTextBases, listBlock) = GenerateChildren(src, context, items!);
-
-            if (listBlock != null)
-            {
-                AddBlockChildren(
-                    items!,
-                    richTextBases.Select(richTexts => new NumberedListItemBlock {NumberedListItem = new NumberedListItemBlock.Info {RichText = richTexts, Color = Color.Default}}).ToList()
-                );
-                context.Mapper.Map<Block>(listBlock);
-                return null;
-            }
-            
-            AddBlockChildren(
-                items!,
-                richTextBases.Select(richTexts => new NumberedListItemBlock {NumberedListItem = new NumberedListItemBlock.Info {RichText = richTexts, Color = Color.Default}}).ToList()
-            );
-            
-            context.Items["AllBlocks"] = items;
+            var newItems = GenerateList<NumberedListItemBlock>(src, context);
+            items.AddRange(newItems);
         }
-            
         // return nothing because we are adding as children to previous block.
         return null;
     }
-    public static (List<List<RichTextBase>> richTextBases, ListBlock? listBlock) GenerateChildren<T>(ListBlock src, ResolutionContext context, List<T> items) where T : IObject
+    
+    private static List<T> GenerateList<T>(ContainerBlock src, ResolutionContext context) where T : Block, new()
     {
-        var richTextResponse = new List<List<RichTextBase>>();
-        foreach (var markDigBlock in src)
+        var response = new List<T>();
+        var children = new List<T>();
+        var blockQueue = new Queue<(ContainerBlock block, T? parent)>();
+
+        // Start with the root block
+        blockQueue.Enqueue((src, null));
+        while (blockQueue.Count > 0)
         {
-            if (markDigBlock is ListItemBlock listItem)
-            {
-                var richTexts = new List<RichTextBase>();
+            var (currentBlock, parentBlock) = blockQueue.Dequeue();
             
-                foreach (var block in listItem)
+            foreach(var markDigBlock in currentBlock)
+            {
+                if (markDigBlock is ContainerBlock listItem)
                 {
-                    if (block is ParagraphBlock paragraphBlock && paragraphBlock.Inline != null)
+                    var richTexts = new List<RichTextBase>();
+
+                    foreach(var block in listItem)
                     {
-                        foreach (var inline in paragraphBlock.Inline)
+                        if (block is ParagraphBlock paragraphBlock && paragraphBlock.Inline != null)
                         {
-                            var richText = context.Mapper.Map<RichTextBase>(inline);
-                            if (richText != null)
+                            foreach(var inline in paragraphBlock.Inline)
                             {
-                                richTexts.Add(richText);
+                                var richText = context.Mapper.Map<RichTextBase>(inline);
+                                if (richText != null)
+                                {
+                                    richTexts.Add(richText);
+                                }
                             }
+                            var notionList = context.Mapper.Map<T>(richTexts);
+                            children.Add(notionList);
+                        }
+                        else if (block is ContainerBlock listBlock)
+                        {
+                            // Recursively add children
+                            blockQueue.Enqueue((listBlock, children.Last()));
                         }
                     }
-                    else if (block is ListBlock listBlock)
-                    {
-                        richTextResponse.Add(richTexts);
-                        return (richTextResponse, listBlock);
-                    }
                 }
-            
-                richTextResponse.Add(richTexts);
             }
+
+            foreach(var child in children)
+            {
+
+                if (parentBlock != null)
+                {
+                    AddBlockChildren(child, parentBlock);
+                }
+                else
+                {
+                    response.Add(child);
+                }
+                
+            }
+            children.Clear();
         }
-        
-        return (richTextResponse, null);
+
+        return response;
     }
 
-    private void AddBlockChildren<T>(List<IBlock> items, List<T> children) where T : Block
+    private static void AddBlockChildren<T>(T child, Block? parent) where T : Block
     {
-        var lastItem = items.Last();
-        switch (lastItem)
+        switch (parent)
         {
             case Notion.Client.ParagraphBlock lastItemParagraphBlock:
-                lastItemParagraphBlock.Paragraph.Children = children as IEnumerable<INonColumnBlock>;
+                lastItemParagraphBlock.Paragraph.Children ??= new List<INonColumnBlock>();
+                lastItemParagraphBlock.Paragraph.Children = lastItemParagraphBlock.Paragraph.Children.Append(child as INonColumnBlock);
                 break;
             case BulletedListItemBlock lastItemBulletedListItemBlock:
-                lastItemBulletedListItemBlock.BulletedListItem.Children = children as IEnumerable<INonColumnBlock>;
+                lastItemBulletedListItemBlock.BulletedListItem.Children ??= new List<INonColumnBlock>();
+                lastItemBulletedListItemBlock.BulletedListItem.Children = lastItemBulletedListItemBlock.BulletedListItem.Children.Append(child as INonColumnBlock);
                 break;
             case NumberedListItemBlock lastItemNumberedListItemBlock:
-                lastItemNumberedListItemBlock.NumberedListItem.Children = children as IEnumerable<INonColumnBlock>;
+                lastItemNumberedListItemBlock.NumberedListItem.Children ??= new List<INonColumnBlock>();
+                lastItemNumberedListItemBlock.NumberedListItem.Children = lastItemNumberedListItemBlock.NumberedListItem.Children.Append(child as INonColumnBlock);
                 break;
             case Notion.Client.QuoteBlock lastItemQuoteBlock:
-                lastItemQuoteBlock.Quote.Children = children as IEnumerable<INonColumnBlock>;
+                lastItemQuoteBlock.Quote.Children ??= new List<INonColumnBlock>();
+                lastItemQuoteBlock.Quote.Children = lastItemQuoteBlock.Quote.Children.Append(child as INonColumnBlock);
                 break;
             default:
-                items.AddRange(children);
                 break;
         }
     }
-    
     public static string MapToNotionCodeLanguage(string markdownLanguage)
     {
         // Map markdown language identifiers to Notion code block language options

@@ -10,9 +10,9 @@ using QuoteBlock = Markdig.Syntax.QuoteBlock;
 
 namespace NotionBae.Profiles;
 
-public class BlockObjectRequestProfile : Profile
+public class MdToBlockObjectRequestProfile : Profile
 {
-    public BlockObjectRequestProfile()
+    public MdToBlockObjectRequestProfile()
     {
         // Map from Markdig MarkdownDocument to a list of Notion Blocks
         CreateMap<MarkdownDocument, List<IBlockObjectRequest>>()
@@ -154,7 +154,7 @@ public class BlockObjectRequestProfile : Profile
             {
                 var codeText = src.Lines.ToString();
                 // Map language to a supported Notion code language or default to plain text
-                var notionLanguage = NotionBlockProfile.MapToNotionCodeLanguage(string.Empty);
+                var notionLanguage = MdToNotionBlockProfile.MapToNotionCodeLanguage(string.Empty);
                 
                 return new CodeBlockRequest
                 {
@@ -179,7 +179,7 @@ public class BlockObjectRequestProfile : Profile
             {
                 var codeText = src.Lines.ToString();
                 // Map language to a supported Notion code language or default to plain text
-                var notionLanguage = NotionBlockProfile.MapToNotionCodeLanguage(src.Info ?? string.Empty);
+                var notionLanguage = MdToNotionBlockProfile.MapToNotionCodeLanguage(src.Info ?? string.Empty);
                 
                 return new CodeBlockRequest
                 {
@@ -284,76 +284,105 @@ public class BlockObjectRequestProfile : Profile
         var items = context.Items["AllBlocks"] as List<IBlockObjectRequest>;
         if (!src.IsOrdered)
         {
-            var (richTextBases, listBlock) = NotionBlockProfile.GenerateChildren(src, context, items!);
-
-            if (listBlock != null)
-            {
-                AddBlockChildren(
-                    items!,
-                    richTextBases.Select(richTexts => new BulletedListItemBlockRequest {BulletedListItem = new BulletedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}})
-                );
-                context.Mapper.Map<IBlockObjectRequest>(listBlock);
-                return null;
-            }
-            
-            AddBlockChildren(
-                items!,
-                richTextBases.Select(richTexts => new BulletedListItemBlockRequest {BulletedListItem = new BulletedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}})
-            );
-            
-            context.Items["AllBlocks"] = items;
+            var newItems = GenerateList<BulletedListItemBlockRequest>(src, context);
+            items.AddRange(newItems);
         }
         else
         {
-            var (richTextBases, listBlock) = NotionBlockProfile.GenerateChildren(src, context, items!);
-
-            if (listBlock != null)
-            {
-                AddBlockChildren(
-                    items!,
-                    richTextBases.Select(richTexts => new NumberedListItemBlockRequest {NumberedListItem = new NumberedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}})
-                );
-                context.Mapper.Map<IBlockObjectRequest>(listBlock);
-                return null;
-            }
-            
-            AddBlockChildren(
-                items!,
-                richTextBases.Select(richTexts => new NumberedListItemBlockRequest {NumberedListItem = new NumberedListItemBlockRequest.Info {RichText = richTexts, Color = Color.Default}})
-            );
-            
-            context.Items["AllBlocks"] = items;
+            var newItems = GenerateList<NumberedListItemBlockRequest>(src, context);
+            items.AddRange(newItems);
         }
             
         // return nothing because we are adding as children to previous block.
         return null;
     }
     
-    private void AddBlockChildren<T>(List<IBlockObjectRequest> items, IEnumerable<T> children) where T : IBlockObjectRequest
+    private static List<T> GenerateList<T>(ListBlock src, ResolutionContext context) where T : BlockObjectRequest
     {
-        var lastItem = items.Last();
-        switch (lastItem)
+        
+        var response = new List<T>();
+        var children = new List<T>();
+        var blockQueue = new Queue<(ContainerBlock block, T? parent)>();
+
+        // Start with the root block
+        blockQueue.Enqueue((src, null));
+        while (blockQueue.Count > 0)
+        {
+            var (currentBlock, parentBlock) = blockQueue.Dequeue();
+            
+            foreach(var markDigBlock in currentBlock)
+            {
+                if (markDigBlock is ContainerBlock listItem)
+                {
+                    var richTexts = new List<RichTextBase>();
+
+                    foreach(var block in listItem)
+                    {
+                        if (block is ParagraphBlock paragraphBlock && paragraphBlock.Inline != null)
+                        {
+                            foreach(var inline in paragraphBlock.Inline)
+                            {
+                                var richText = context.Mapper.Map<RichTextBase>(inline);
+                                if (richText != null)
+                                {
+                                    richTexts.Add(richText);
+                                }
+                            }
+                            var notionList = context.Mapper.Map<T>(richTexts);
+                            children.Add(notionList);
+                        }
+                        else if (block is ContainerBlock listBlock)
+                        {
+                            // Recursively add children
+                            blockQueue.Enqueue((listBlock, children.Last()));
+                        }
+                    }
+                }
+            }
+
+            foreach(var child in children)
+            {
+
+                if (parentBlock != null)
+                {
+                    AddBlockChildren(child, parentBlock);
+                }
+                else
+                {
+                    response.Add(child);
+                }
+                
+            }
+            children.Clear();
+        }
+
+        return response;
+    }
+    
+    private static void AddBlockChildren<T>(IBlockObjectRequest child, T parent) where T : IBlockObjectRequest
+    {
+        switch (parent)
         {
             case ParagraphBlockRequest lastItemParagraphBlock:
-                lastItemParagraphBlock.Paragraph.Children = children as IEnumerable<INonColumnBlockRequest>;
+                lastItemParagraphBlock.Paragraph.Children ??= new List<INonColumnBlockRequest>();
+                lastItemParagraphBlock.Paragraph.Children = lastItemParagraphBlock.Paragraph.Children.Append(child as INonColumnBlockRequest);
                 break;
             case BulletedListItemBlockRequest lastItemBulletedListItemBlock:
-                lastItemBulletedListItemBlock.BulletedListItem.Children = children as IEnumerable<BulletedListItemBlockRequest>;
+                lastItemBulletedListItemBlock.BulletedListItem.Children ??= new List<INonColumnBlockRequest>();
+                lastItemBulletedListItemBlock.BulletedListItem.Children = lastItemBulletedListItemBlock.BulletedListItem.Children.Append(child as INonColumnBlockRequest);
                 break;
             case NumberedListItemBlockRequest lastItemNumberedListItemBlock:
-                lastItemNumberedListItemBlock.NumberedListItem.Children = children as IEnumerable<INonColumnBlockRequest>;
+                lastItemNumberedListItemBlock.NumberedListItem.Children ??= new List<INonColumnBlockRequest>();
+                lastItemNumberedListItemBlock.NumberedListItem.Children = lastItemNumberedListItemBlock.NumberedListItem.Children.Append(child as INonColumnBlockRequest);
                 break;
             case QuoteBlockRequest lastItemQuoteBlock:
-                lastItemQuoteBlock.Quote.Children = children as IEnumerable<INonColumnBlockRequest>;
+                lastItemQuoteBlock.Quote.Children ??= new List<INonColumnBlockRequest>();
+                lastItemQuoteBlock.Quote.Children = lastItemQuoteBlock.Quote.Children.Append(child as INonColumnBlockRequest);
                 break;
             default:
-                var insertChidlren = children as IEnumerable<IBlockObjectRequest>;
-                if (insertChidlren != null)
-                {
-                    items.AddRange(insertChidlren);
-                }
                 break;
         }
     }
+
     
 }

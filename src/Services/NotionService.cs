@@ -1,12 +1,15 @@
 ﻿using System.Text.Json;
 using AutoMapper;
 using Markdig;
+using Markdig.Renderers.Normalize;
+using Markdig.Syntax;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Notion.Client;
 using NotionBae.Utilities;
-using CodeBlock = Markdig.Syntax.CodeBlock;
-using ParagraphBlock = NotionBae.Utilities.ParagraphBlock;
+using Block = Notion.Client.Block;
+using IBlock = Notion.Client.IBlock;
+using ParagraphBlock = Notion.Client.ParagraphBlock;
 
 namespace NotionBae.Services;
 
@@ -14,13 +17,14 @@ public interface INotionService
 {
     Task<HttpResponseMessage> Search(string query);
     Task<Page> CreatePage(string parentId, string title, string content);
-    Task<HttpResponseMessage> RetrievePage(string pageId);
-    Task<HttpResponseMessage> RetrieveBlockChildren(string blockId);
+    Task<Page> RetrievePage(string pageId);
+    Task<RetrieveChildrenResponse> RetrieveBlockChildren(string blockId);
     Task<HttpResponseMessage> UpdatePage(string pageId, string title);
     Task<HttpResponseMessage> UpdateBlock(string blockId, string content);
     Task<HttpResponseMessage> DeleteBlock(string blockId);
     Task DeleteBlocks(List<string> blockIds);
     Task<AppendChildrenResponse> AppendBlockChildren(string blockId, string content, string? after = null);
+    Task<string> GetPageContent(string blockId);
 }
 
 public class NotionPageUpdateRequest
@@ -94,14 +98,17 @@ public class NotionService : INotionService
         return await _client.Pages.CreateAsync(page);
     }
 
-    public async Task<HttpResponseMessage> RetrievePage(string pageId)
+    public async Task<Page> RetrievePage(string pageId)
     {
-        return await _httpclient.GetAsync($"pages/{pageId}");
+        return await _client.Pages.RetrieveAsync(pageId);
     }
 
-    public async Task<HttpResponseMessage> RetrieveBlockChildren(string blockId)
+    public async Task<RetrieveChildrenResponse> RetrieveBlockChildren(string blockId)
     {
-        return await _httpclient.GetAsync($"blocks/{blockId}/children");
+        return await _client.Blocks.RetrieveChildrenAsync(new BlockRetrieveChildrenRequest
+        {
+            BlockId = blockId
+        });
     }
 
     public async Task<HttpResponseMessage> UpdatePage(string pageId, string title)
@@ -174,7 +181,11 @@ public class NotionService : INotionService
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
         var documents = Markdown.Parse(content, pipeline);
         
-        var blocks = _mapper.Map<List<IBlock>>(documents, opt => opt.Items["AllBlocks"] = new List<Block>());
+        var blocks = _mapper.Map<List<IBlock>>(documents, opt => 
+        {
+            opt.Items["AllBlocks"] = new List<BlockObjectRequest>();
+            opt.Items["Parent"] = null;
+        });
 
         return blocks;
     }
@@ -187,11 +198,125 @@ public class NotionService : INotionService
         var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt =>
             {
                 opt.Items["AllBlocks"] = new List<BlockObjectRequest>();
-                opt.Items["ParentBlock"] = null;
+                opt.Items["Parent"] = null;
             }
         );
 
         return blocks;
+    }
+
+    public string NotionToHtml(List<IBlock> blocks)
+    {
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var markdown = _mapper.Map<MarkdownDocument>(blocks, opt =>
+        {
+            opt.Items["AllBlocks"] = new MarkdownDocument();
+            opt.Items["Parent"] = null;
+        });
+
+        return markdown.ToHtml(pipeline);
+    }
+    
+    public string NotionToMarkdown(List<IBlock> blocks)
+    {
+        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+        var markdown = _mapper.Map<MarkdownDocument>(blocks, opt =>
+        {
+            opt.Items["AllBlocks"] = new MarkdownDocument();
+            opt.Items["Parent"] = null;
+        });
+        
+        var writer = new StringWriter();
+        var renderer = new NormalizeRenderer(writer);
+        renderer.ObjectRenderers.Add(new TableRenderer());
+        renderer.CompactParagraph = true;
+        pipeline.Setup(renderer);
+
+        renderer.Render(markdown);
+        writer.Flush();
+        
+        return writer.ToString();
+    }
+    
+    public async Task<string> GetPageContent(string blockId)
+    {
+        var notionBlocks = await GetPageContentWithChildren(blockId);
+
+        return NotionToMarkdown(notionBlocks);
+    }
+    
+    private async Task<List<IBlock>> GetPageContentWithChildren(string blockId)
+    {
+        var allBlocks = new List<IBlock>();
+        var blockQueue = new Queue<(string BlockId, IBlock? ParentBlock)>();
+    
+        // Start with the root block
+        blockQueue.Enqueue((blockId, null));
+    
+        while (blockQueue.Count > 0)
+        {
+            var (currentBlockId, parentBlock) = blockQueue.Dequeue();
+            var childrenResponse = await RetrieveBlockChildren(currentBlockId);
+        
+            foreach (var block in childrenResponse.Results)
+            {
+                if (parentBlock != null)
+                {
+                    // Add as child to parent block
+                    AddChildren(parentBlock, block);
+                }
+                else
+                {
+                    // Add as top-level block
+                    allBlocks.Add(block);
+                }
+            
+                // If this block has children, add them to the queue
+                if (block.HasChildren)
+                {
+                    blockQueue.Enqueue((block.Id, block));
+                }
+            }
+        }
+        
+        return allBlocks;
+    }
+    
+    //TODO: probably fingure out what else has children and make sure we pull them in here.
+    private void AddChildren(IBlock parent, IBlock child)
+    {
+        switch (parent)
+        {
+            case TableBlock tableBlock:
+                if(tableBlock.Table.Children == null)
+                {
+                    tableBlock.Table.Children = new List<TableRowBlock>();
+                }
+                tableBlock.Table.Children = tableBlock.Table.Children.Append(child as TableRowBlock);
+                break;
+            case BulletedListItemBlock bulletedListItemBlock:
+                if(bulletedListItemBlock.BulletedListItem.Children == null)
+                {
+                    bulletedListItemBlock.BulletedListItem.Children = new List<BulletedListItemBlock>();
+                }
+                bulletedListItemBlock.BulletedListItem.Children = bulletedListItemBlock.BulletedListItem.Children.Append(child as INonColumnBlock);
+                break;
+            case NumberedListItemBlock numberedListItemBlock:
+                if(numberedListItemBlock.NumberedListItem.Children == null)
+                {
+                    numberedListItemBlock.NumberedListItem.Children = new List<NumberedListItemBlock>();
+                }
+                numberedListItemBlock.NumberedListItem.Children = numberedListItemBlock.NumberedListItem.Children.Append(child as INonColumnBlock);
+                break;
+            case ParagraphBlock paragraphBlock:
+                if(paragraphBlock.Paragraph.Children == null)
+                {
+                    paragraphBlock.Paragraph.Children = new List<ParagraphBlock>();
+                }
+                paragraphBlock.Paragraph.Children = paragraphBlock.Paragraph.Children.Append(child as INonColumnBlock);
+                break;
+                
+        }
     }
 
     
