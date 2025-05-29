@@ -15,7 +15,11 @@ NotionBae provides a bridge between Large Language Models and Notion.com through
 
 ## Technologies
 
-- **[Notion SDK for .NET](https://github.com/notion-dotnet/notion-sdk-net)**: A comprehensive .NET client for the Notion API that simplifies integration and provides strongly-typed access to Notion's resources
+- **[Notion SDK for .NET](https://github.com/notion-dotnet/notion-sdk-net)**: A comprehensive .NET client for the Notion API. While we use this SDK as a foundation, we've implemented our own `NotionBaeRestClient` to address several limitations:
+  - The original SDK's REST client implementation was tightly coupled and didn't follow .NET best practices for dependency injection
+  - Our custom client properly utilizes `HttpClientFactory`, which is crucial for proper handling of connection pooling and lifetime management
+  - This redesign allows for better testability and enables polymorphic behavior in our test suites
+  - The solution provides true dependency injection rather than the pseudo-DI implementation in the original SDK
 - **[Markdig](https://github.com/xoofx/markdig)**: A fast, powerful, and extensible Markdown processor for .NET used for converting between Notion's block structure and Markdown
 
 ### Why Markdown?
@@ -39,6 +43,9 @@ NotionBae provides the following tools for interacting with Notion:
 | nb_search | Searches Notion pages and returns their titles and public URLs | `query`: String - The search query to find matching pages in Notion |
 | nb_create_page | Creates a new Notion page with the given title, description, and content | `parentId`: String - ID of the parent page<br>`title`: String - Title of the new page<br>`description`: String - Description for the page<br>`content`: String - Markdown content for the page |
 | nb_get_page_content | Retrieves a Notion page with its metadata and full content in markdown format | `pageId`: String - ID of the page to retrieve |
+| nb_get_block | Retrieves a specific block and its children from Notion | `blockId`: String - ID of the block to retrieve |
+| nb_search_page | Advanced page search with filtering capabilities | `query`: String - The search query<br>`filter`: Object - Optional filter parameters |
+| nb_update_page | Updates an existing Notion page | `pageId`: String - ID of the page to update<br>`content`: String - New markdown content for the page |
 
 ## Getting Started
 
@@ -201,3 +208,4 @@ The following items represent the current development priorities for NotionBae:
 | Database Query Support | Planned | Extended capabilities for querying and filtering Notion databases |
 
 ## License
+
