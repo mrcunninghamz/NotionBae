@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Notion.Client;
 using NotionBae.Services;
 using Polly;
 using Polly.Extensions.Http;
@@ -30,10 +31,25 @@ builder.Services
     .WithToolsFromAssembly();
 
 builder.Services.AddAutoMapper(typeof(Program));
+
 // Register HttpClient for NotionService
-builder.Services.AddHttpClient<INotionService, NotionService>()
+
+builder.Services.AddHttpClient<IRestClient, NotionBaeRestClient>()
     .AddPolicyHandler(Policy.BulkheadAsync<HttpResponseMessage>(10, Int32.MaxValue))
     .AddPolicyHandler((provider, _) => GetRetryOnRateLimitingPolicy(provider));
+
+builder.Services.AddSingleton<IUsersClient, UsersClient>();
+builder.Services.AddSingleton<IDatabasesClient, DatabasesClient>();
+builder.Services.AddSingleton<IPagesClient, PagesClient>();
+builder.Services.AddSingleton<ISearchClient, SearchClient>();
+builder.Services.AddSingleton<ICommentsClient, CommentsClient>();
+builder.Services.AddSingleton<IBlocksClient, BlocksClient>();
+builder.Services.AddSingleton<IAuthenticationClient, AuthenticationClient>();
+builder.Services.AddSingleton<INotionClient, NotionClient>();
+// builder.Services.AddNotionClient(op =>
+// {
+// });
+builder.Services.AddSingleton<INotionService, NotionService>();
 
 // Build and run the host
 var host = builder.Build();

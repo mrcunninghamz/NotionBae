@@ -31,6 +31,7 @@
   <ItemGroup>
     <Compile Remove="NotionBae.Tests\**" />
     <Compile Remove="NotionBae\**" />
+    <Compile Remove="Profiles\MdToBlockObjectRequestProfile.cs" />
   </ItemGroup>
 
   <ItemGroup>

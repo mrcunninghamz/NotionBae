@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
+using Notion.Client;
 using NotionBae.Services;
 using NotionBae.Utilities;
 
@@ -28,85 +29,13 @@ public class SearchTool
         {
             var response = await _notionService.Search(query);
             
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-                
-                _logger.LogError("Error searching Notion: {StatusCode} with message: {Message}", 
-                    response.StatusCode, detailedError);
-                return $"Error searching Notion: {response.StatusCode}\nDetails: {detailedError}";
-            }
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var searchResult = JsonDocument.Parse(responseContent);
-            
             var results = new List<string>();
             
-            if (searchResult.RootElement.TryGetProperty("results", out var resultsElement) && 
-                resultsElement.ValueKind == JsonValueKind.Array)
+            foreach (var page in response.Results.Select(x => x as Page))
             {
-                foreach (var page in resultsElement.EnumerateArray())
-                {
-                    var title = "";
-                    var publicUrl = "No public URL available";
-                    var id = "";
-                    var parentInfo = "";
-                    
-                    // Extract page ID
-                    if (page.TryGetProperty("id", out var idProp))
-                    {
-                        id = idProp.GetString() ?? "";
-                    }
-                    
-                    // Extract parent information
-                    if (page.TryGetProperty("parent", out var parentProp))
-                    {
-                        if (parentProp.TryGetProperty("type", out var parentType))
-                        {
-                            var type = parentType.GetString();
-                            parentInfo = $"Parent type: {type}";
-                            
-                            // Add additional parent info if available
-                            if (type != null && parentProp.TryGetProperty(type, out var parentDetails))
-                            {
-                                if (parentDetails.ValueKind == JsonValueKind.String)
-                                {
-                                    parentInfo += $", ID: {parentDetails.GetString()}";
-                                }
-                                else if (parentDetails.ValueKind == JsonValueKind.True)
-                                {
-                                    parentInfo += ", workspace: true";
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Extract title
-                    if (page.TryGetProperty("properties", out var properties) &&
-                        properties.TryGetProperty("title", out var titleProp) &&
-                        titleProp.TryGetProperty("title", out var titleArray) &&
-                        titleArray.ValueKind == JsonValueKind.Array && 
-                        titleArray.GetArrayLength() > 0)
-                    {
-                        var firstTitle = titleArray[0];
-                        if (firstTitle.TryGetProperty("text", out var text) &&
-                            text.TryGetProperty("content", out var content))
-                        {
-                            title = content.GetString() ?? "";
-                        }
-                    }
-                    
-                    // Extract public URL
-                    if (page.TryGetProperty("public_url", out var publicUrlProp) && 
-                        publicUrlProp.ValueKind != JsonValueKind.Null)
-                    {
-                        publicUrl = publicUrlProp.GetString() ?? publicUrl;
-                    }
-                    
-                    results.Add($"Title: {title}, ID: {id}, Parent: {parentInfo}, Public URL: {publicUrl}");
-                }
+                results.Add($"Title: {string.Join(' ', (page.Properties["title"] as TitlePropertyValue).Title.Select(x => x.PlainText))}, ID: {page.Id}, Public URL: {page.PublicUrl ?? "Not available"}");
             }
+            
             
             _logger.LogInformation("Search completed. Found {ResultCount} results", results.Count);
             return results.Count > 0 

@@ -23,7 +23,7 @@ public class BlockTool
     [McpServerTool(Name = "nb_update_block"), Description("Updates a Notion block with markdown content.")]
     public async Task<string> UpdateBlock(
         string blockId,
-        [Description("This content should be a single line of markdown.")]
+        [Description("A single block represented by a single line of markdown.")]
         string content)
     {
         _logger.LogInformation("Updating Notion block with ID: {BlockId}", blockId);
@@ -35,19 +35,7 @@ public class BlockTool
 
         try
         {
-            var response = await _notionService.UpdateBlock(blockId, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-
-                _logger.LogError("Error updating Notion block: {StatusCode} with message: {Message}",
-                    response.StatusCode, detailedError);
-                return $"Error updating Notion block: {response.StatusCode}\nDetails: {detailedError}";
-            }
-
-            var responseContent = await response.Content.ReadAsStringAsync();
+            _ = await _notionService.UpdateBlock(blockId, content);
 
             _logger.LogInformation("Successfully updated content for block ID: {BlockId}", blockId);
 
