@@ -1,14 +1,10 @@
-﻿using System.Xml.Serialization;
-using AutoMapper;
+﻿using AutoMapper;
 using Markdig.Extensions.Tables;
 using Markdig.Helpers;
 using Markdig.Parsers;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Notion.Client;
-using NotionBae.Utilities;
-using Block = Notion.Client.Block;
-using CodeBlock = Notion.Client.CodeBlock;
 using HeadingBlock = Markdig.Syntax.HeadingBlock;
 using IBlock = Notion.Client.IBlock;
 using ParagraphBlock = Notion.Client.ParagraphBlock;
@@ -30,8 +26,8 @@ public class NotionBlockToMdProfile : Profile
                     var markdownBlock = context.Mapper.Map<Markdig.Syntax.Block>(block);
                     if (markdownBlock != null)
                     {
-                        document.Add(AddBlockIdComment(block.Id)); //come back to this.
                         document.Add(markdownBlock);
+                        document.Add(AddBlockIdComment(block.Id)); //come back to this.
                     }
                 }
                 return document;
@@ -74,8 +70,8 @@ public class NotionBlockToMdProfile : Profile
                         {
                             continue;
                         }
-                        items.Add(AddBlockIdComment(src.Id));
                         items!.Add(childMarkdownBlock);
+                        items.Add(AddBlockIdComment(src.Id));
                     }
                 }
 
@@ -96,13 +92,6 @@ public class NotionBlockToMdProfile : Profile
             .ConvertUsing((src, _, context) => CreateHeadingBlock(src.Heading_3?.RichText, 3, context));
         
         // Bulleted list mapping
-        CreateMap<BulletedListBlock, MarkdownObject>()
-            .ConvertUsing((src, _, context) => 
-                new ListBlock(new ListBlockParser())
-                {
-                    IsOrdered = false,
-                    BulletType = '-'
-                });
         CreateMap<BulletedListItemBlock, MarkdownObject>()
             .ConvertUsing((src, _, context) =>
             {
@@ -136,7 +125,6 @@ public class NotionBlockToMdProfile : Profile
                 listBlock.Add(listItem);
                 
                 var paragraph = new Markdig.Syntax.ParagraphBlock();
-                listItem.Add(AddBlockIdComment(src.Id));
                 listItem.Add(paragraph);
                 
                 if (src.BulletedListItem?.RichText != null)
@@ -152,6 +140,7 @@ public class NotionBlockToMdProfile : Profile
                             inlineContainer.AppendChild(inline);
                         }
                     }
+                    inlineContainer.AppendChild(AddBlockIdInline(src.Id));
                 }
                 
                 // Handle children (nested list items)
@@ -168,8 +157,8 @@ public class NotionBlockToMdProfile : Profile
                             continue;
                         }
                         
-                        items.Add(AddBlockIdComment(child.Id));
                         items!.Add(childMarkdownBlock);
+                        items.Add(AddBlockIdComment(child.Id));
                     }
                 }
                 context.Items["Parent"] = null;
@@ -178,15 +167,6 @@ public class NotionBlockToMdProfile : Profile
             });
         
         // Numbered list mapping
-        CreateMap<NumberedListBlock, MarkdownObject>()
-            .ConvertUsing((src, _, context) => 
-                new ListBlock(new ListBlockParser())
-                {
-                    IsOrdered = true,
-                    OrderedStart = "1",
-                    OrderedDelimiter = '.',
-                    BulletType = '1'
-                });
         CreateMap<NumberedListItemBlock, MarkdownObject>()
             .ConvertUsing((src, _, context) =>
             {
@@ -222,7 +202,6 @@ public class NotionBlockToMdProfile : Profile
                 listBlock.Add(listItem);
                 
                 var paragraph = new Markdig.Syntax.ParagraphBlock();
-                listItem.Add(AddBlockIdComment(src.Id));
                 listItem.Add(paragraph);
                 
                 if (src.NumberedListItem?.RichText != null)
@@ -238,6 +217,7 @@ public class NotionBlockToMdProfile : Profile
                             inlineContainer.AppendChild(inline);
                         }
                     }
+                    inlineContainer.AppendChild(AddBlockIdInline(src.Id));
                 }
                 
                 // Handle children (nested list items)
@@ -254,8 +234,8 @@ public class NotionBlockToMdProfile : Profile
                             continue;
                         }
                         
-                        items.Add(AddBlockIdComment(child.Id));
                         items!.Add(childMarkdownBlock);
+                        items.Add(AddBlockIdComment(child.Id));
                     }
                 }
                 context.Items["Parent"] = null;
@@ -435,14 +415,19 @@ public class NotionBlockToMdProfile : Profile
         return headingBlock;
     }
     
+    
+    private LiteralInline AddBlockIdInline(string blockId)
+    {
+        return new LiteralInline($" [//]: # (The markdown element previous to this comment has this BlockId: {blockId})");
+    }
+    
     private Markdig.Syntax.ParagraphBlock AddBlockIdComment(string blockId)
     {
-        var comment = new LiteralInline($"[//]: # (BlockId: {blockId})");
         return 
             new Markdig.Syntax.ParagraphBlock
             {
                 Inline = new ContainerInline()
-                    .AppendChild(comment)
+                    .AppendChild(AddBlockIdInline(blockId))
             };
         
     }

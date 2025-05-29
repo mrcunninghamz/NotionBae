@@ -49,7 +49,9 @@ public class PageTool
     }
 
     [McpServerTool(Name = "nb_get_page_content"),
-     Description("Retrieves a Notion page with its metadata and full content in markdown format.")]
+     Description("Retrieves a Notion page with its metadata and full content in markdown format. " +
+                 "BlockId is in the comment after the Markdown element. " +
+                 "A comment looks like this: `[//]: # (BlockId: 12345678-1234-1234-1234-123456789012)`")]
     public async Task<string> GetPageContent(
         string pageId)
     {
@@ -70,9 +72,9 @@ public class PageTool
             // Combine metadata and content into a single response
             var markdownResponse = $"""
                             ---
-                            - pageid: {pageId}
-                            - privateUrl: {privateUrl}
-                            - publicUrl: {publicUrl}
+                            pageid: {pageId}
+                            privateUrl: {privateUrl}
+                            publicUrl: {publicUrl}
                             ---
                             {content}
                             """;

@@ -20,32 +20,11 @@ public interface INotionService
     Task<Page> RetrievePage(string pageId);
     Task<RetrieveChildrenResponse> RetrieveBlockChildren(string blockId);
     Task<HttpResponseMessage> UpdatePage(string pageId, string title);
-    Task<HttpResponseMessage> UpdateBlock(string blockId, string content);
+    Task<IBlock> UpdateBlock(string blockId, string content);
     Task<HttpResponseMessage> DeleteBlock(string blockId);
     Task DeleteBlocks(List<string> blockIds);
     Task<AppendChildrenResponse> AppendBlockChildren(string blockId, string content, string? after = null);
     Task<string> GetPageContent(string blockId);
-}
-
-public class NotionPageUpdateRequest
-{
-    public TitleProperty? Properties { get; init; }
-    public List<object>? Children { get; init; }
-}
-
-public class TitleProperty
-{
-    public required TitleElement[] Title { get; init; }
-}
-
-public class TitleElement
-{
-    public required TextContent Text { get; init; }
-}
-
-public class TextContent
-{
-    public required string Content { get; init; }
 }
 
 public class NotionService : INotionService
@@ -113,18 +92,17 @@ public class NotionService : INotionService
 
     public async Task<HttpResponseMessage> UpdatePage(string pageId, string title)
     {
-        var properties = CreateTitleProperties(title);
-        var payload = CreateUpdatePayload(properties);
-        
-        return await SendPatchRequestAsync($"pages/{pageId}", payload);
+        // var properties = CreateTitleProperties(title);
+        // var payload = CreateUpdatePayload(properties);
+        //
+        // return await SendPatchRequestAsync($"pages/{pageId}", payload);
+        throw  new NotImplementedException();
     }
     
-    public async Task<HttpResponseMessage> UpdateBlock(string blockId, string content)
+    public async Task<IBlock> UpdateBlock(string blockId, string content)
     {
-        var blocks = !string.IsNullOrEmpty(content) ? CreateContentBlocks(content) : null;
-        
-        
-        return await SendPatchRequestAsync($"blocks/{blockId}", blocks.FirstOrDefault());
+        var blocks = MarkdownToNotionUpdate(content);
+        return await _client.Blocks.UpdateAsync(blockId, blocks);
     }
 
     public async Task<HttpResponseMessage> DeleteBlock(string blockId)
@@ -189,20 +167,19 @@ public class NotionService : INotionService
 
         return blocks;
     }
+
+    public IUpdateBlock MarkdownToNotionUpdate(string content)
+    {
+        var blocks = MarkdownToNotion(content).FirstOrDefault();
+        return _mapper.Map<IUpdateBlock>(blocks);
+    }
+    
     
     public List<IBlockObjectRequest> MarkdownToNotionAppend(string content)
     {
-        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-        var documents = Markdown.Parse(content, pipeline);
-        
-        var blocks = _mapper.Map<List<IBlockObjectRequest>>(documents, opt =>
-            {
-                opt.Items["AllBlocks"] = new List<BlockObjectRequest>();
-                opt.Items["Parent"] = null;
-            }
-        );
+        var blocks = MarkdownToNotion(content);
 
-        return blocks;
+        return _mapper.Map<List<IBlockObjectRequest>>(blocks);
     }
 
     public string NotionToHtml(List<IBlock> blocks)
@@ -318,33 +295,6 @@ public class NotionService : INotionService
                 
         }
     }
-
-    
-    private static TitleProperty? CreateTitleProperties(string title) =>
-        !string.IsNullOrEmpty(title)
-            ? new TitleProperty
-            {
-                Title = new[]
-                {
-                    new TitleElement
-                    {
-                        Text = new TextContent { Content = title }
-                    }
-                }
-            }
-            : null;
-
-    private static List<object>? CreateContentBlocks(string content) =>
-        !string.IsNullOrEmpty(content)
-            ? MarkdownToNotionConverter.ConvertToNotionBlocks(content)
-            : null;
-
-    private static NotionPageUpdateRequest CreateUpdatePayload(TitleProperty? properties, List<object>? blocks = null) =>
-        new()
-        {
-            Properties = properties,
-            Children = blocks
-        };
     
     private async Task<HttpResponseMessage> SendPatchRequestAsync<T>(string endpoint, T payload)
     {
