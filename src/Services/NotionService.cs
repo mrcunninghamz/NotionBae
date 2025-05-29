@@ -15,13 +15,13 @@ namespace NotionBae.Services;
 
 public interface INotionService
 {
-    Task<HttpResponseMessage> Search(string query);
+    Task<SearchResponse> Search(string query);
     Task<Page> CreatePage(string parentId, string title, string content);
     Task<Page> RetrievePage(string pageId);
     Task<RetrieveChildrenResponse> RetrieveBlockChildren(string blockId);
-    Task<HttpResponseMessage> UpdatePage(string pageId, string title);
+    Task<Page> UpdatePage(string pageId, string title);
     Task<IBlock> UpdateBlock(string blockId, string content);
-    Task<HttpResponseMessage> DeleteBlock(string blockId);
+    Task DeleteBlock(string blockId);
     Task DeleteBlocks(List<string> blockIds);
     Task<AppendChildrenResponse> AppendBlockChildren(string blockId, string content, string? after = null);
     Task<string> GetPageContent(string blockId);
@@ -29,33 +29,25 @@ public interface INotionService
 
 public class NotionService : INotionService
 {
-    private readonly HttpClient _httpclient;
     private readonly ILogger<NotionService> _logger;
     private readonly IMapper _mapper;
-    private readonly NotionClient _client;
+    private readonly INotionClient _client;
 
-    public NotionService(HttpClient httpclient, IConfiguration configuration, ILogger<NotionService> logger, IMapper mapper)
+    public NotionService(INotionClient client, ILogger<NotionService> logger, IMapper mapper)
     {
-        var token = configuration["NotionApiKey"];
-        _httpclient = httpclient;
-        _httpclient.BaseAddress = new Uri("https://api.notion.com/v1/");
-        _httpclient.DefaultRequestHeaders.Add("Notion-Version", "2022-06-28");
-        _httpclient.DefaultRequestHeaders.Remove("Authorization");
-        _httpclient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
         _logger = logger;
         _mapper = mapper;
-        
-        //TODO fix this:
-        _client = NotionClientFactory.Create(new ClientOptions
-        {
-            AuthToken = token
-        });
+        _client = client;
     }
     
-    public async Task<HttpResponseMessage> Search(string query)
+    public async Task<SearchResponse> Search(string query)
     {
-        var payload = new { query };
-        return await SendPostRequestAsync("search", payload);
+        var payload = new SearchRequest
+        {
+            Query = query
+        };
+
+        return await _client.Search.SearchAsync(payload);
     }
     
     public async Task<Page> CreatePage(string parentId, string title, string content)
@@ -90,13 +82,30 @@ public class NotionService : INotionService
         });
     }
 
-    public async Task<HttpResponseMessage> UpdatePage(string pageId, string title)
+    public async Task<Page> UpdatePage(string pageId, string title)
     {
-        // var properties = CreateTitleProperties(title);
-        // var payload = CreateUpdatePayload(properties);
-        //
-        // return await SendPatchRequestAsync($"pages/{pageId}", payload);
-        throw  new NotImplementedException();
+        return await _client.Pages.UpdateAsync(pageId,
+            new PagesUpdateParameters
+            {
+                Properties = new Dictionary<string, PropertyValue>
+                {
+                    {
+                        "title", new TitlePropertyValue
+                        {
+                            Title = new List<RichTextBase>
+                            {
+                                new RichTextText
+                                {
+                                    Text = new Text
+                                    {
+                                        Content = title
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
     }
     
     public async Task<IBlock> UpdateBlock(string blockId, string content)
@@ -105,17 +114,11 @@ public class NotionService : INotionService
         return await _client.Blocks.UpdateAsync(blockId, blocks);
     }
 
-    public async Task<HttpResponseMessage> DeleteBlock(string blockId)
+    public async Task DeleteBlock(string blockId)
     {
         _logger.LogInformation("Deleting block with ID: {BlockId}", blockId);
-        
-        var request = new HttpRequestMessage
-        {
-            Method = HttpMethod.Delete,
-            RequestUri = new Uri(_httpclient.BaseAddress, $"blocks/{blockId}")
-        };
-        
-        return await _httpclient.SendAsync(request);
+
+        await _client.Blocks.DeleteAsync(blockId);
     }
 
     public async Task DeleteBlocks(List<string> blockIds)
@@ -180,18 +183,6 @@ public class NotionService : INotionService
         var blocks = MarkdownToNotion(content);
 
         return _mapper.Map<List<IBlockObjectRequest>>(blocks);
-    }
-
-    public string NotionToHtml(List<IBlock> blocks)
-    {
-        var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-        var markdown = _mapper.Map<MarkdownDocument>(blocks, opt =>
-        {
-            opt.Items["AllBlocks"] = new MarkdownDocument();
-            opt.Items["Parent"] = null;
-        });
-
-        return markdown.ToHtml(pipeline);
     }
     
     public string NotionToMarkdown(List<IBlock> blocks)
@@ -294,50 +285,5 @@ public class NotionService : INotionService
                 break;
                 
         }
-    }
-    
-    private async Task<HttpResponseMessage> SendPatchRequestAsync<T>(string endpoint, T payload)
-    {
-        var options = new JsonSerializerOptions
-        {
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        };
-        
-        var payloadJson = JsonSerializer.Serialize(payload, options);
-        
-        _logger.LogInformation("Sending PATCH {Endpoint} request with payload: {Payload}", endpoint, payloadJson);
-        
-        var jsonContent = new StringContent(
-            payloadJson,
-            System.Text.Encoding.UTF8,
-            "application/json");
-            
-        var request = new HttpRequestMessage
-        {
-            Method = HttpMethod.Patch,
-            RequestUri = new Uri(_httpclient.BaseAddress, endpoint),
-            Content = jsonContent
-        };
-            
-        return await _httpclient.SendAsync(request);
-    }    
-    
-    private async Task<HttpResponseMessage> SendPostRequestAsync<T>(string endpoint, T payload)
-    {
-        var options = new JsonSerializerOptions
-        {
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        };
-        
-        var payloadJson = JsonSerializer.Serialize(payload, options);
-        
-        _logger.LogInformation("Sending {Endpoint} request with payload: {Payload}", endpoint, payloadJson);
-        
-        var jsonContent = new StringContent(
-            payloadJson,
-            System.Text.Encoding.UTF8,
-            "application/json");
-            
-        return await _httpclient.PostAsync(endpoint, jsonContent);
     }
 }

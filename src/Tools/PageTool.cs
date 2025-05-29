@@ -103,36 +103,7 @@ public class PageTool
         {
             var response = await _notionService.UpdatePage(pageId, title);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                var detailedError = NotionResponseHelper.ExtractErrorMessage(errorContent);
-
-                _logger.LogError("Error updating Notion page: {StatusCode} with message: {Message}",
-                    response.StatusCode, detailedError);
-                return $"Error updating Notion page: {response.StatusCode}\nDetails: {detailedError}";
-            }
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var pageResult = JsonDocument.Parse(responseContent);
-
-            // Extract page ID to confirm success
-            var updatedPageId = "";
-            if (pageResult.RootElement.TryGetProperty("id", out var idProp))
-            {
-                updatedPageId = idProp.GetString() ?? "";
-            }
-
-            var updateInfo = new List<string>();
-            if (!string.IsNullOrEmpty(title))
-            {
-                updateInfo.Add("title");
-            }
-
-            var updateDetails = string.Join(" and ", updateInfo);
-            _logger.LogInformation("Successfully updated {UpdateDetails} for page ID: {PageId}", updateDetails, pageId);
-
-            return $"Page updated successfully!\nID: {updatedPageId}\nUpdated: {updateDetails}";
+            return $"Page updated successfully!\nID: {response.Id}";
         }
         catch (Exception ex)
         {
