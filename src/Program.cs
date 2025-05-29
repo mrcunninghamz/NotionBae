@@ -1,9 +1,12 @@
 ﻿using System.Net;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Notion.Client;
+using NotionBae.Extensions;
 using NotionBae.Services;
 using Polly;
 using Polly.Extensions.Http;
@@ -31,25 +34,10 @@ builder.Services
     .WithToolsFromAssembly();
 
 builder.Services.AddAutoMapper(typeof(Program));
-
-// Register HttpClient for NotionService
-
-builder.Services.AddHttpClient<IRestClient, NotionBaeRestClient>()
+builder.Services.AddNotionClient(builder.Configuration)
     .AddPolicyHandler(Policy.BulkheadAsync<HttpResponseMessage>(10, Int32.MaxValue))
     .AddPolicyHandler((provider, _) => GetRetryOnRateLimitingPolicy(provider));
 
-builder.Services.AddSingleton<IUsersClient, UsersClient>();
-builder.Services.AddSingleton<IDatabasesClient, DatabasesClient>();
-builder.Services.AddSingleton<IPagesClient, PagesClient>();
-builder.Services.AddSingleton<ISearchClient, SearchClient>();
-builder.Services.AddSingleton<ICommentsClient, CommentsClient>();
-builder.Services.AddSingleton<IBlocksClient, BlocksClient>();
-builder.Services.AddSingleton<IAuthenticationClient, AuthenticationClient>();
-builder.Services.AddSingleton<INotionClient, NotionClient>();
-// builder.Services.AddNotionClient(op =>
-// {
-//     op.AuthToken = "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";
-// });
 builder.Services.AddSingleton<INotionService, NotionService>();
 
 // Build and run the host
@@ -61,14 +49,14 @@ var logger = host.Services.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("Configuration loaded. Any settings from appsettings.local.json are now available.");
 
 // Example of reading a configuration value (if it exists)
-if (config["NotionApiKey"] == null)
+if (config["Notion:AuthToken"] == null)
 {
-    logger.LogWarning("NotionApiKey not found in configuration sources. Please set it in appsettings.local.json or as an environment variable.");
-    throw new Exception("NotionApiKey not found in configuration. The application requires a valid Notion API key to function.");   
+    logger.LogWarning("Notion:AuthToken not found in configuration sources. Please set it in appsettings.local.json or as an environment variable.");
+    throw new Exception("Notion:AuthToken not found in configuration. The application requires a valid Notion API key to function.");   
 }
 else
 {
-    logger.LogInformation("NotionApiKey found in configuration.");
+    logger.LogInformation("Notion:AuthToken found in configuration.");
 }
 
 
