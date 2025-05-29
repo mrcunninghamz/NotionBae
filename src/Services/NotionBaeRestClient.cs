@@ -17,7 +17,6 @@ public class NotionBaeRestClient : IRestClient
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<NotionBaeRestClient> _logger;
-    private readonly ClientOptions _options;
 
     private readonly JsonSerializerSettings _defaultSerializerSettings = new()
     {
@@ -25,17 +24,10 @@ public class NotionBaeRestClient : IRestClient
         ContractResolver = new DefaultContractResolver { NamingStrategy = new CamelCaseNamingStrategy() }
     };
 
-    public NotionBaeRestClient(HttpClient httpClient, IConfiguration configuration, ILogger<NotionBaeRestClient> logger)
+    public NotionBaeRestClient(HttpClient httpClient, ILogger<NotionBaeRestClient> logger)
     {
-        var token = configuration["NotionApiKey"];
         _httpClient = httpClient;
         _logger = logger;
-        _options = MergeOptions(new ClientOptions
-        {
-            AuthToken = token
-        });
-        
-        _httpClient.BaseAddress = new Uri(_options.BaseUrl);
     }
 
     public async Task<T> GetAsync<T>(
@@ -153,8 +145,6 @@ public class NotionBaeRestClient : IRestClient
         requestUri = AddQueryString(requestUri, queryParams);
 
         using var httpRequest = new HttpRequestMessage(httpMethod, requestUri);
-        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.AuthToken);
-        httpRequest.Headers.Add("Notion-Version", _options.NotionVersion);
 
         if (headers != null)
         {
