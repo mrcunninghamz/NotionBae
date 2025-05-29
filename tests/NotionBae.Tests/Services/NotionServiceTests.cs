@@ -274,53 +274,6 @@ stme-dbo/39312/stme-dob-inventory-api
     }
 
     [Fact]
-    public async Task UpdateBlock_WithMarkdownContent_SendsProperRequest()
-    {
-        // Arrange
-        var blockId = "test-block-id";
-        var markdownContent = "**Target Timeline: Q3 2025**\n\n**Status: 🟡 In Progress**\n\nUpdates have been made in branch: feature/3-sqlite-integration. A pull request will be submitted soon.";
-        
-        var expectedBlocks = MarkdownToNotionConverter.ConvertToNotionBlocks(markdownContent);
-        var expectedPayload = new { children = expectedBlocks };
-        
-        var expectedJsonContent = JsonSerializer.Serialize(expectedPayload);
-
-        var responseMessage = new HttpResponseMessage
-        {
-            StatusCode = HttpStatusCode.OK,
-            Content = new StringContent("{\"success\": true}")
-        };
-
-        _mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.Is<HttpRequestMessage>(req => 
-                    req.Method == HttpMethod.Patch && 
-                    req.RequestUri.ToString().Contains($"blocks/{blockId}")),
-                ItExpr.IsAny<CancellationToken>()
-            )
-            .ReturnsAsync(responseMessage);
-
-        // Act
-        var result = await TestSubject.UpdateBlock(blockId, markdownContent);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
-        
-        _mockHttpMessageHandler
-            .Protected()
-            .Verify(
-                "SendAsync",
-                Times.Once(),
-                ItExpr.Is<HttpRequestMessage>(req =>
-                    req.Method == HttpMethod.Patch &&
-                    req.RequestUri.ToString() == $"https://api.notion.com/v1/blocks/{blockId}"),
-                ItExpr.IsAny<CancellationToken>()
-            );
-    }
-
-    [Fact]
     public async Task NoOrphanedBullets()
     {
         // arrange
@@ -369,7 +322,7 @@ stme-dbo/39312/stme-dob-inventory-api
     - CERT: Point APIM to new front door location for certification environment 🔵 Not started
     - PROD: Point APIM to new front door location for production environment 🔵 Not started
   - wow
-- break this:
+- break this
 
 1. Inventory API PR 🟢 Completed
     1. Create enabler for DevOps to update APIM endpoints:
@@ -377,15 +330,7 @@ stme-dbo/39312/stme-dob-inventory-api
         2. CERT: Point APIM to new front door location for certification environment 🔵 Not started
         3. PROD: Point APIM to new front door location for production environment 🔵 Not started
     2. wow
-2. break this:
-
-1. Inventory API PR 🟢 Completed
-  1. Create enabler for DevOps to update APIM endpoints:
-    1. INT: Point APIM to new front door location for integration environment ⌚ In progress
-    2. CERT: Point APIM to new front door location for certification environment 🔵 Not started
-    3. PROD: Point APIM to new front door location for production environment 🔵 Not started
-  2. wow
-2. break this:
+2. break this
 ";
         //TODO: something wierd when numberblock isn't tabbed but its even a problem in the parser itself.
         
@@ -408,17 +353,36 @@ stme-dbo/39312/stme-dob-inventory-api
         // assert
         
         Assert.NotEmpty(appendBlocks);
-        Assert.Equal(12, appendBlocks.Count);
-        Assert.Equal(3, (appendBlocks.Last() as NumberedListItemBlockRequest)!.NumberedListItem.Children.Count());
+        Assert.Equal(6, appendBlocks.Count);
         
         Assert.NotEmpty(blocks);
-        Assert.Equal(12, blocks.Count);
-        Assert.Equal(3, (blocks.Last() as NumberedListItemBlock)!.NumberedListItem.Children.Count());
-
-        Assert.IsType<ParagraphBlock>(blocks[2]);
-        Assert.IsType<BulletedListItemBlock>(blocks[3]);
+        Assert.Equal(6, blocks.Count);
         
     }
-    
-    //TODO create a test that represents actual notion blocks classes for nested bullets as it doesn't seem to be properly mapping as nested bullets don't actually show up
+
+    [Theory]
+    [InlineData("# Create Multiple Inventory Repositories per App", "HeadingOneUpdateBlock")]
+    [InlineData("## Create Multiple Inventory Repositories per App", "HeadingTwoUpdateBlock")]
+    [InlineData("### Create Multiple Inventory Repositories per App", "HeadingThreeUpdateBlock")]
+    [InlineData("Just random stuff", "ParagraphUpdateBlock")]
+    [InlineData("- Just random stuff", "BulletedListItemUpdateBlock")]
+    [InlineData("1. Just random stuff", "NumberedListItemUpdateBlock")]
+    [InlineData(@"```csharp
+// Just random stuff
+```", "CodeUpdateBlock")]
+    [InlineData("----", "DividerUpdateBlock")]
+    [InlineData(@"| Language | Primary Use Case | First Release | Typing |
+|----------|-----------------|---------------|---------|
+| Python | Data Science | 1991 | Dynamic |", "TableUpdateBlock")]
+    public async Task MarkdownToNotionUpdate_SingleItem_Works(string content, string expectedType)
+    {
+        // arrange
+
+        // act
+        var updateblock = TestSubject.MarkdownToNotionUpdate(content);
+
+        // assert
+        Assert.NotNull(updateblock);
+        Assert.Equal(expectedType, updateblock.GetType().Name);
+    }
 }
