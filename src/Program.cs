@@ -1,37 +1,27 @@
 ﻿using System.Net;
-using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Notion.Client;
 using NotionBae.Extensions;
 using NotionBae.Services;
 using Polly;
 using Polly.Extensions.Http;
 
 // Create the application builder
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder();
 
 // Configure to use environmental variables then to use appsettings.local.json
 builder.Configuration
     .AddEnvironmentVariables()
     .AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
 
-
-// Configure logging
-builder.Logging.AddConsole(consoleLogOptions =>
-{
-    // Configure all logs to go to stderr
-    consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
-});
-
 // Add the MCP server
 builder.Services
     .AddMcpServer()
-    .WithStdioServerTransport()
+    .WithHttpTransport()
     .WithToolsFromAssembly();
+
 
 builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddNotionClient(builder.Configuration)
@@ -54,11 +44,10 @@ if (config["Notion:AuthToken"] == null)
     logger.LogWarning("Notion:AuthToken not found in configuration sources. Please set it in appsettings.local.json or as an environment variable.");
     throw new Exception("Notion:AuthToken not found in configuration. The application requires a valid Notion API key to function.");   
 }
-else
-{
-    logger.LogInformation("Notion:AuthToken found in configuration.");
-}
 
+logger.LogInformation("Notion:AuthToken found in configuration.");
+
+host.MapMcp("/mcp");
 
 await host.RunAsync();
 return;
