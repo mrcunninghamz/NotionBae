@@ -86,107 +86,35 @@ NotionBae provides the following tools for interacting with Notion:
    dotnet build
    ```
 
+3. **Set up Environment Variables**:
+
+   The NotionBae server requires the following environment variables:
+   
+   - `Notion:AuthToken`: Your Notion API key for authentication with Notion's API 
+   
+   You can obtain a Notion API key by creating an integration in your Notion workspace settings. Visit the [Notion API documentation](https://developers.notion.com/docs/getting-started) for more information on creating an integration and obtaining an API key. 
+   Copy appsettings.template.json to appsettings.json and fill in the value for `Notion:AuthToken` with your Notion API key.
+
+
+4. **Run the project**:
+   ```bash
+   dotnet run --project PATH_TO_NOTIONBAE_PROJECT/src/NotionBae.csproj
+   ```
+   Replace `PATH_TO_NOTIONBAE_PROJECT` with the path to your NotionBae project folder (the folder containing the NotionBae.csproj file).
+
 ### 3. MCP Server Configuration
 
 To use NotionBae as an MCP server in VS Code, add the following configuration to your VS Code `settings.json` file:
 
 ```json
 "mcp": {
-  "inputs": [
-    {
-      "type": "promptString",
-      "id": "notion_api_key",
-      "description": "Notion API Key",
-      "password": true
-    }
-  ],
   "servers": {
-    "NotionBae": {
-      "type": "stdio",
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "PATH_TO_NOTIONBAE_PROJECT\\src\\NotionBae.csproj"
-      ],
-      "env": {
-        "NotionApiKey": "${input:notion_api_key}"
+      "NotionBae": {
+        "url": "http://localhost:5000/mcp"
       }
-    }
   }
 }
 ```
-
-Replace `PATH_TO_NOTIONBAE_PROJECT` with the path to your NotionBae project folder (the folder containing the NotionBae.csproj file).
-
-For example, if your NotionBae project is located at `C:\Projects\NotionBae\`, the configuration would be:
-
-```json
-"args": [
-  "run",
-  "--project",
-  "C:\\Projects\\NotionBae\\src\\NotionBae.csproj"
-]
-```
-
-### Environment Variables
-
-The NotionBae server requires the following environment variables:
-
-- `NotionApiKey`: Your Notion API key for authentication with Notion's API
-
-You can obtain a Notion API key by creating an integration in your Notion workspace settings. Visit the [Notion API documentation](https://developers.notion.com/docs/getting-started) for more information on creating an integration and obtaining an API key.
-
-### Running the Server
-
-There are several ways to start the NotionBae MCP server:
-
-1. **Using VS Code Commands**:
-   - Open the Command Palette (`Cmd+Shift+P` on Mac or `Ctrl+Shift+P` on Windows/Linux)
-   - Type "MCP: Start Server" and select it from the dropdown
-   - Choose "NotionBae" from the list of available servers
-
-2. **Using Context Menu**:
-   - In your VS Code settings.json file, hover over the server name ("NotionBae")
-   - Click on the "Start Server" button that appears above the server configuration
-   - VS Code will prompt you for your Notion API key (as configured in the inputs section)
-
-3. **Direct Command Line** (alternative method):
-   - You can also run the server directly using the command line from the project directory:
-   ```
-   dotnet run
-   ```
-   - Note: When using this method, you'll need to ensure the NotionApiKey environment variable is set separately
-
-Once the server is running, it will be available for use with compatible AI assistants that support the Model Context Protocol.
-
-## MCP Inspector
-
-NotionBae is compatible with the Model Context Protocol (MCP) Inspector tool, which helps you validate and debug your MCP server implementation.
-
-### What is MCP Inspector?
-
-The MCP Inspector is a command-line utility that allows you to:
-- Validate that your MCP server conforms to the MCP specification
-- Test your server's responses to various requests
-- Debug issues with tool execution and response handling
-- Explore the capabilities and schema of your server
-
-### Running the Inspector with NotionBae
-
-To run the MCP Inspector with NotionBae, navigate to your NotionBae project directory and execute:
-
-```bash
-npx @modelcontextprotocol/inspector dotnet run
-```
-
-This command will:
-1. Start your NotionBae MCP server using `dotnet run`
-2. Launch the MCP Inspector, which will connect to your running server
-3. Validate your server implementation against the MCP specification
-4. Provide a detailed report of any issues or recommendations
-
-The inspector will help ensure that NotionBae is properly implementing the MCP protocol and that all tools are correctly defined and functioning.
 
 ## Related Projects
 
@@ -194,18 +122,6 @@ This project is part of the "Bae" collection of tools:
 
 - [TestBae](https://github.com/mrcunninghamz/TestBae) - A .NET testing utility library that simplifies test setup with fixtures, mocks, and common testing patterns for more efficient and maintainable test suites.
 - [AzBae](https://github.com/mrcunninghamz/AzBae) - Azure DevOps tooling that provides both CLI and GUI interfaces to streamline Azure resource management, deployments, and DevOps workflows.
-
-## Roadmap
-
-The following items represent the current development priorities for NotionBae:
-
-| Feature | Status | Details |
-|---------|--------|---------|
-| Support for More Block Types | In Progress | Links, tables, and nested items have been completed. Work continues on additional block types to ensure comprehensive Notion content support. |
-| Fix Markdown to Notion Conversion for Indentation | In Progress | A PR is coming that utilizes Markdig and the Notion SDK for more reliable conversion, eliminating complex regex-based solutions. AutoMapper is being used for mapping between Markdig and Notion objects in page creation and update methods. |
-| Enhanced Error Handling | Planned | Improved error reporting and recovery mechanisms for API interactions |
-| Batch Operations | Planned | Support for efficient batch processing of Notion operations |
-| Database Query Support | Planned | Extended capabilities for querying and filtering Notion databases |
 
 ## License
 
