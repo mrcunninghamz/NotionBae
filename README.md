@@ -110,7 +110,7 @@ To use NotionBae as an MCP server in VS Code, add the following configuration to
 "mcp": {
   "servers": {
       "NotionBae": {
-        "url": "http://localhost:5000/mcp"
+        "url": "http://localhost:5001/mcp"
       }
   }
 }
