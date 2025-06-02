@@ -1,9 +1,11 @@
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
+using AutoMapper;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
+using Notion.Client;
 using NotionBae.Services;
 using NotionBae.Utilities;
 
@@ -14,11 +16,13 @@ public class PageTool
 {
     private readonly INotionService _notionService;
     private readonly ILogger<PageTool> _logger;
+    private readonly IMapper _mapper;
 
-    public PageTool(INotionService notionService, ILogger<PageTool> logger)
+    public PageTool(INotionService notionService, ILogger<PageTool> logger, IMapper mapper)
     {
         _notionService = notionService;
         _logger = logger;
+        _mapper = mapper;
     }
 
     [McpServerTool(Name = "nb_create_page"),
@@ -127,14 +131,28 @@ public class PageTool
         {
             // Get existing blocks
             var blockChildrenResponse = await _notionService.RetrieveBlockChildren(pageId);
+            
+            // Make the first block a placeholder for the content to be added after everything else is deleted.
+            // this is neccesary incase there are childblocks that we do not want to delete and want to keep at the bottom of the page.
+            string? firstBlockId = null;
             if (blockChildrenResponse.Results.Any())
             {
+                // Do not delete ChildPage blocks
+                var blockIds = blockChildrenResponse.Results.Where(x => x.Type != BlockType.ChildPage).Select(x => x.Id).ToList();
                 
-                var blockIds = blockChildrenResponse.Results.Select(x => x.Id).ToList();
+                // Remove the first block from the list to keep it as a placeholder
+                firstBlockId = blockIds.First();
+                blockIds.Remove(firstBlockId);
+                
                 await _notionService.DeleteBlocks(blockIds);
             }
-        
-            await _notionService.AppendBlockChildren(pageId, content);
+
+            await _notionService.AppendBlockChildren(pageId, content, firstBlockId);
+
+            if (firstBlockId != null)
+            {
+                await _notionService.DeleteBlock(firstBlockId);
+            }
     
             _logger.LogInformation("Successfully updated content for page ID: {PageId}", pageId);
             return $"Page content updated successfully!\nID: {pageId}";
