@@ -154,6 +154,9 @@ public class NotionProfile : Profile
             .IncludeBase<IBlock, IBlockObjectRequest>();
         CreateMap<TableRowBlock.Info, TableRowBlockRequest.Info>();
 
+        CreateMap<ChildPageBlock, ChildPageBlockRequest>()
+            .IncludeBase<IBlock, IBlockObjectRequest>();
+        CreateMap<ChildPageBlock.Info, ChildPageBlockRequest.Info>();
     }
     private NumberedListItemBlockRequest.Info NumberedListChildrenConverter(NumberedListItemBlock.Info src, NumberedListItemBlockRequest.Info _, ResolutionContext context)
     {
