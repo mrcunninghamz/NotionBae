@@ -1,13 +1,9 @@
 using System.ComponentModel;
-using System.Text;
-using System.Text.Json;
-using AutoMapper;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Notion.Client;
 using NotionBae.Services;
-using NotionBae.Utilities;
 
 namespace NotionBae.Tools;
 
@@ -16,13 +12,11 @@ public class PageTool
 {
     private readonly INotionService _notionService;
     private readonly ILogger<PageTool> _logger;
-    private readonly IMapper _mapper;
 
-    public PageTool(INotionService notionService, ILogger<PageTool> logger, IMapper mapper)
+    public PageTool(INotionService notionService, ILogger<PageTool> logger)
     {
         _notionService = notionService;
         _logger = logger;
-        _mapper = mapper;
     }
 
     [McpServerTool(Name = "nb_create_page"),
