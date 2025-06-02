@@ -5,6 +5,7 @@ using Markdig.Parsers;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Notion.Client;
+using Block = Markdig.Syntax.Block;
 using HeadingBlock = Markdig.Syntax.HeadingBlock;
 using IBlock = Notion.Client.IBlock;
 using ParagraphBlock = Notion.Client.ParagraphBlock;
@@ -388,6 +389,10 @@ public class NotionBlockToMdProfile : Profile
                 
                 return table;
             });
+        
+        // child page blocks need to be ignored in the markdown output.
+        CreateMap<ChildPageBlock, Block>()
+            .ConvertUsing((_,_,_) => null);
     }
     
     private HeadingBlock CreateHeadingBlock(IEnumerable<RichTextBase> richText, int level, ResolutionContext context)
